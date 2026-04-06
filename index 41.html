@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>DroneAcademy 🚁</title>
+  <meta name="description" content="Apprends l'ingénierie drone façon Duolingo — réglementation EASA/DGAC, physique du vol, FPV, électronique." />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; background: #f7f7f7; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ══════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════
+
+const UNITS = [
+  { id:"u1",title:"Les Bases",icon:"🚁",color:"#58CC02",lessons:[
+    {id:"l1",title:"Types de drones",icon:"🚁",xp:10,exercises:[
+      {type:"mcq",q:"Combien de rotors a un quadricoptère ?",opts:["2","4","6","8"],ok:1,exp:"QUADRI = 4 en latin ! Le quadricoptère est le drone le plus répandu au monde.",src:"Mécanique des multirotors"},
+      {type:"tf",stmt:"Un drone FPV se pilote avec des lunettes vidéo.",ok:true,exp:"FPV = First Person View. Tu vois en temps réel comme si tu étais dans le drone !",src:"Vocabulaire FPV"},
+      {type:"fillblank",before:"Les drones à aile fixe ont une meilleure",blank:"endurance",after:"que les multirotors.",opts:["endurance","vitesse","stabilité","puissance"],exp:"L'aile fixe consomme bien moins d'énergie en croisière → vols de plusieurs heures !",src:"Comparatif drones"},
+      {type:"match",pairs:[["Quadricoptère","4 rotors"],["Hexacoptère","6 rotors"],["FPV Racer","Casque vidéo"],["Aile fixe","Longue endurance"]]},
+      {type:"mcq",q:"Quel format est le plus utilisé en agriculture de précision ?",opts:["FPV racing","Multirotors lourds","Mini-drones","Ballons"],ok:1,exp:"Les hexacoptères et octocopters portent des charges lourdes pour l'agriculture.",src:"Agriculture drone"},
+    ]},
+    {id:"l2",title:"Composants essentiels",icon:"⚙️",xp:10,exercises:[
+      {type:"mcq",q:"Que signifie ESC ?",opts:["Easy Speed Control","Electronic Speed Controller","Engine Stop Control","Electric Signal Converter"],ok:1,exp:"ESC = Electronic Speed Controller. Il convertit les signaux du FC en courant moteur.",src:"Électronique embarquée"},
+      {type:"tf",stmt:"Le Flight Controller est le « cerveau » du drone.",ok:true,exp:"Le FC lit tous les capteurs et envoie des ordres aux ESC jusqu'à 4000x/seconde !",src:"Architecture drone"},
+      {type:"fillblank",before:"La batterie la plus utilisée est la",blank:"LiPo",after:"pour son ratio énergie/poids.",opts:["LiPo","NiMH","Alcaline","Plomb"],exp:"LiPo = Lithium Polymer. Excellent ratio énergie/poids.",src:"Électronique embarquée"},
+      {type:"match",pairs:[["FC","Cerveau du drone"],["ESC","Contrôleur moteur"],["LiPo","Batterie légère"],["IMU","Gyro + Accéléro"]]},
+      {type:"mcq",q:"Que mesure le baromètre dans un drone ?",opts:["La vitesse","L'altitude","La direction","La température"],ok:1,exp:"Le baromètre mesure la pression atmosphérique et en déduit l'altitude. Précis à ~1 mètre !",src:"Capteurs aéronautiques"},
+    ]},
+    {id:"l3",title:"Histoire des drones",icon:"📜",xp:10,exercises:[
+      {type:"mcq",q:"Dans quel secteur les drones ont-ils été utilisés en premier ?",opts:["Loisir","Agriculture","Militaire","Livraison"],ok:2,exp:"Les drones militaires existent depuis 1910 !",src:"Histoire aviation militaire"},
+      {type:"tf",stmt:"DJI est une entreprise française.",ok:false,exp:"DJI est CHINOISE, fondée à Shenzhen en 2006 par Frank Wang.",src:"Histoire DJI"},
+      {type:"mcq",q:"Quelle entreprise livre du sang par drone au Rwanda ?",opts:["Amazon","Wing","Zipline","UPS"],ok:2,exp:"Zipline effectue des milliers de livraisons médicales par drone en Afrique !",src:"Zipline Drone Delivery"},
+      {type:"tf",stmt:"Le marché mondial des drones dépasse 40 milliards € en 2024.",ok:true,exp:"Explosion du marché ! Agriculture, cinéma, défense, livraison...",src:"Rapport marché drone 2024"},
+      {type:"fillblank",before:"Le DJI Mini 4 pèse moins de",blank:"250",after:"grammes.",opts:["250","500","100","800"],exp:"249g = juste sous la limite C0 ! Moins de 250g = réglementation simplifiée.",src:"DJI Mini 4"},
+    ]}
+  ]},
+  { id:"u2",title:"Physique du Vol",icon:"⚡",color:"#1CB0F6",lessons:[
+    {id:"l4",title:"Les 4 forces",icon:"⚡",xp:15,exercises:[
+      {type:"mcq",q:"Quelle force s'oppose au poids d'un drone en vol ?",opts:["La traînée","La poussée","L'inertie","La friction"],ok:1,exp:"POUSSÉE des hélices vs POIDS (gravité). Si poussée > poids → montée !",src:"Physique du vol"},
+      {type:"tf",stmt:"En vol stationnaire, la poussée est égale au poids.",ok:true,exp:"Équilibre parfait : Poussée = Poids. C'est la 2ème loi de Newton !",src:"Mécanique du vol"},
+      {type:"match",pairs:[["Poussée ↑","Hélices"],["Poids ↓","Gravité"],["Traînée ←","Résistance air"],["Portance ↑","Profil aile"]]},
+      {type:"mcq",q:"Quelle est l'accélération gravitationnelle sur Terre ?",opts:["9,81 m/s²","10,5 m/s²","8,5 m/s²","1 m/s²"],ok:0,exp:"g = 9,81 m/s². Un drone de 500g doit produire > 4,9 N pour décoller.",src:"Constantes physiques"},
+      {type:"tf",stmt:"Des hélices plus grandes créent plus de poussée.",ok:true,exp:"Plus grande pale = plus d'air déplacé = plus de poussée.",src:"Aérodynamique hélices"},
+    ]},
+    {id:"l5",title:"Contrôle du vol",icon:"🕹️",xp:15,exercises:[
+      {type:"mcq",q:"Comment s'appelle la rotation autour de l'axe vertical ?",opts:["Roll","Pitch","Yaw","Throttle"],ok:2,exp:"YAW = rotation gauche/droite sur l'axe Z.",src:"Mécanique multirotors"},
+      {type:"match",pairs:[["Pitch","Avant/Arrière"],["Roll","Gauche/Droite"],["Yaw","Rotation Z"],["Throttle","Montée/Descente"]]},
+      {type:"tf",stmt:"En mode Acro, le drone revient seul à l'horizontale.",ok:false,exp:"Mode ACRO = AUCUNE stabilisation automatique.",src:"Modes vol Betaflight"},
+      {type:"mcq",q:"Pour rouler à gauche, que font les moteurs gauches ?",opts:["Ils accélèrent","Ils ralentissent","Ils s'arrêtent","Rien"],ok:1,exp:"Moteurs gauches ralentissent + moteurs droits accélèrent → inclinaison à gauche.",src:"Contrôle quadricoptère"},
+      {type:"fillblank",before:"Le yaw est produit par le",blank:"couple de réaction",after:"entre moteurs CW et CCW.",opts:["couple de réaction","vent relatif","gyroscope","GPS"],exp:"Moteurs CW et CCW créent des couples opposés. La différence génère le yaw !",src:"Physique quadricoptère"},
+    ]},
+    {id:"l6",title:"Aérodynamique",icon:"🌀",xp:15,exercises:[
+      {type:"mcq",q:"Quel profil est utilisé pour les pales d'hélice ?",opts:["Profil carré","Profil NACA","Profil rond","Profil hexagonal"],ok:1,exp:"Les profils NACA sont des formes aérodynamiques standardisées.",src:"Aérodynamique NACA"},
+      {type:"tf",stmt:"La traînée est proportionnelle au carré de la vitesse.",ok:true,exp:"F_drag = ½ρv²CdA. Doubler la vitesse = 4× plus de traînée !",src:"Aérodynamique théorique"},
+      {type:"mcq",q:"Qu'est-ce que l'effet de sol ?",opts:["Rebond sur le sol","Portance accrue près du sol","Bruit augmenté","GPS perturbé"],ok:1,exp:"Près du sol, l'air comprimé crée un 'coussin' → plus de portance.",src:"Aérodynamique sol"},
+      {type:"fillblank",before:"La traînée augmente avec le",blank:"carré",after:"de la vitesse.",opts:["carré","double","cube","triple"],exp:"F_drag = ½ρv²CdA. Le facteur v² explique pourquoi aller vite coûte tant d'énergie !",src:"Physique aérodynamique"},
+      {type:"tf",stmt:"Une hélice tri-pale est toujours plus efficace qu'une bi-pale.",ok:false,exp:"Bi-pale = plus efficace à haute vitesse. Tri-pale = plus de poussée à basse vitesse.",src:"Comparatif hélices"},
+    ]}
+  ]},
+  { id:"u3",title:"Réglementation",icon:"📋",color:"#FF9600",lessons:[
+    {id:"l7",title:"Catégories EASA",icon:"🇪🇺",xp:20,exercises:[
+      {type:"mcq",q:"Combien de catégories le règlement EASA définit-il ?",opts:["2","3","4","5"],ok:1,exp:"3 catégories : Ouverte, Spécifique (autorisation DGAC), Certifiée.",src:"Règlement UE 2019/947"},
+      {type:"tf",stmt:"La catégorie Ouverte est la plus restrictive.",ok:false,exp:"La catégorie Ouverte est la MOINS restrictive !",src:"Règlement UE 2019/947"},
+      {type:"match",pairs:[["A1","< 250g, près des gens"],["A2","< 4kg, 30m personnes"],["A3","Loin zones habitées"],["Spécifique","Autorisation DGAC"]]},
+      {type:"mcq",q:"Depuis quand le règlement européen est-il applicable ?",opts:["Janvier 2019","Janvier 2021","Juillet 2022","Mars 2020"],ok:1,exp:"Applicable depuis janvier 2021 dans toute l'Europe.",src:"Règlement UE 2019/947"},
+      {type:"fillblank",before:"La formation A1/A3 se passe sur",blank:"Alphanumeric",after:".interieur.gouv.fr.",opts:["Alphanumeric","DGAC-online","Drone-cert","Géoportail"],exp:"alphanumeric.interieur.gouv.fr = portail officiel DGAC. Gratuit !",src:"DGAC Portail drone"},
+    ]},
+    {id:"l8",title:"Zones de vol",icon:"🗺️",xp:20,exercises:[
+      {type:"mcq",q:"Hauteur max autorisée en catégorie ouverte ?",opts:["50 m","100 m","120 m","200 m"],ok:2,exp:"120 mètres au-dessus du sol ! Règlement UE 2019/947, article 4.",src:"Règlement UE 2019/947"},
+      {type:"tf",stmt:"Il faut une autorisation pour voler dans un rayon de 5 km d'un aéroport.",ok:true,exp:"Les zones CTR autour des aéroports sont réglementées.",src:"Code aviation civile"},
+      {type:"mcq",q:"Quel outil permet de vérifier les zones de vol en France ?",opts:["DJI Fly","AirMap","Géoportail Drones","Google Maps"],ok:2,exp:"Géoportail Drones est l'outil officiel DGAC.",src:"DGAC Zones de vol"},
+      {type:"tf",stmt:"On peut voler au-dessus d'un rassemblement avec un drone de 50g.",ok:false,exp:"JAMAIS au-dessus d'un rassemblement, quelle que soit la taille !",src:"Règlement UE 2019/947"},
+      {type:"fillblank",before:"L'amende pour violation de zone interdite peut atteindre",blank:"15 000",after:"€.",opts:["15 000","1 000","500","5 000"],exp:"Jusqu'à 15 000€ d'amende ET 1 an de prison !",src:"Code de l'aviation civile"},
+    ]},
+    {id:"l9",title:"Enregistrement",icon:"📝",xp:20,exercises:[
+      {type:"mcq",q:"À partir de quel poids un drone doit-il être enregistré ?",opts:["100 g","250 g","800 g","1 kg"],ok:2,exp:"≥ 800g OU équipé d'une caméra → enregistrement obligatoire.",src:"Arrêté 3 décembre 2020"},
+      {type:"tf",stmt:"Un drone avec caméra de 200g doit être enregistré.",ok:true,exp:"La caméra = obligation d'enregistrement quelle que soit la masse.",src:"Arrêté 3 décembre 2020"},
+      {type:"mcq",q:"L'attestation A1/A3 DGAC est valable combien de temps ?",opts:["1 an","5 ans","À vie","3 ans"],ok:2,exp:"À VIE ! Une fois l'examen passé, aucun renouvellement.",src:"DGAC Attestation"},
+      {type:"fillblank",before:"Le test A1/A3 comporte",blank:"40",after:"questions.",opts:["40","20","60","30"],exp:"40 questions, 75% requis (30/40 bonnes réponses).",src:"Formation DGAC"},
+      {type:"tf",stmt:"L'enregistrement d'un drone coûte 35€.",ok:false,exp:"L'enregistrement est GRATUIT sur alphanumeric.interieur.gouv.fr !",src:"DGAC Enregistrement"},
+    ]}
+  ]},
+  { id:"u4",title:"Électronique",icon:"🔋",color:"#CE82FF",lessons:[
+    {id:"l10",title:"Batteries LiPo",icon:"🔋",xp:20,exercises:[
+      {type:"mcq",q:"Que signifie '4S' dans 'LiPo 4S 1500mAh' ?",opts:["4 secondes","4 cellules série","4 ampères","4 cellules parallèle"],ok:1,exp:"S = cellules en Série. 4S = 4 × 3,7V = 14,8V nominal.",src:"Électronique LiPo"},
+      {type:"tf",stmt:"Une cellule LiPo ne doit jamais descendre sous 3,5V.",ok:true,exp:"Sous 3,5V/cellule = dommages irréversibles.",src:"Guide maintenance LiPo"},
+      {type:"match",pairs:[["1S","3,7V"],["2S","7,4V"],["3S","11,1V"],["4S","14,8V"]]},
+      {type:"mcq",q:"Que signifie '75C' pour une batterie LiPo ?",opts:["75 Celsius","Taux de décharge max","75 cycles","Taille"],ok:1,exp:"C = taux de décharge. 75C × 1,5Ah = 112,5A max !",src:"Électronique LiPo"},
+      {type:"tf",stmt:"Stocker une LiPo à 4,2V/cellule est recommandé.",ok:false,exp:"Voltage de stockage idéal = 3,8V par cellule.",src:"Guide sécurité LiPo"},
+    ]},
+    {id:"l11",title:"Moteurs Brushless",icon:"⚡",xp:20,exercises:[
+      {type:"mcq",q:"Que signifie 'kv' dans '2450kv' ?",opts:["Kilovolt","Tours/min par volt","Watts","Diamètre mm"],ok:1,exp:"kv = RPM/V. 2450kv × 14,8V = ~36 260 tr/min !",src:"Moteurs brushless"},
+      {type:"tf",stmt:"Un moteur brushless n'a pas de balais.",ok:true,exp:"Sans balais = moins de friction, plus efficace, durée de vie plus longue !",src:"Électrotechnique moteurs"},
+      {type:"fillblank",before:"Un moteur '2306' a un stator de",blank:"23",after:"mm de diamètre.",opts:["23","30","20","26"],exp:"Notation 2306 : '23' = diamètre stator mm, '06' = hauteur stator mm.",src:"Nomenclature moteurs FPV"},
+      {type:"mcq",q:"Quel moteur convient mieux pour un drone cinéma ?",opts:["3000kv haut","800kv bas","Identiques","Brushed"],ok:1,exp:"Bas kv + grandes hélices = plus de stabilité, moins de vibrations.",src:"Drones cinéma"},
+      {type:"match",pairs:[["Stator","Partie fixe"],["Rotor","Partie tournante"],["kv","RPM/Volt"],["Bobinage","Cuivre électro"]]},
+    ]},
+    {id:"l12",title:"Flight Controller",icon:"🖥️",xp:20,exercises:[
+      {type:"mcq",q:"À quelle fréquence un FC moderne calcule-t-il ?",opts:["100 Hz","1 000 Hz","4 000 Hz","10 Hz"],ok:2,exp:"Les FC modernes (Betaflight) calculent jusqu'à 4 kHz ou 8 kHz !",src:"Documentation Betaflight"},
+      {type:"tf",stmt:"L'IMU contient un gyroscope et un accéléromètre.",ok:true,exp:"IMU = Inertial Measurement Unit. Gyroscope + accéléromètre.",src:"Capteurs inertiels"},
+      {type:"match",pairs:[["Gyroscope","Vitesse rotation"],["Accéléromètre","Accélération"],["Baromètre","Altitude"],["GPS","Position/vitesse"]]},
+      {type:"mcq",q:"Quel firmware est le plus populaire pour le FPV racing ?",opts:["ArduPilot","PX4","Betaflight","iNAV"],ok:2,exp:"Betaflight est le standard du FPV racing !",src:"Communauté FPV"},
+      {type:"fillblank",before:"Le protocole digital entre FC et ESC le plus rapide est",blank:"DSHOT",after:".",opts:["DSHOT","PWM","OneShot","Multishot"],exp:"DSHOT est un protocole digital sans calibration entre FC et ESC.",src:"Betaflight Protocoles"},
+    ]}
+  ]},
+  { id:"u5",title:"Pilotage FPV",icon:"🎮",color:"#FF4B4B",lessons:[
+    {id:"l13",title:"Modes de vol",icon:"🕹️",xp:25,exercises:[
+      {type:"mcq",q:"En mode Angle, que se passe-t-il si tu lâches les sticks ?",opts:["Il continue","Il revient à plat","Il descend","Il fait demi-tour"],ok:1,exp:"Mode ANGLE = auto-niveau ! Le drone revient toujours à l'horizontale.",src:"Modes vol Betaflight"},
+      {type:"tf",stmt:"Les pilotes FPV pros volent principalement en mode Angle.",ok:false,exp:"Les pros volent en ACRO (Rate Mode) ! Contrôle total.",src:"FPV Pros Technique"},
+      {type:"match",pairs:[["Angle","Auto-niveau débutant"],["Horizon","Semi-acro flips"],["Acro","Pas de stabilisation"],["GPS","Position hold"]]},
+      {type:"mcq",q:"Qu'est-ce qu'un simulateur FPV ?",opts:["Un vrai drone","Logiciel d'entraînement","Mode spécial","Caméra FPV"],ok:1,exp:"Simulateurs (Liftoff, Velocidrone, DRL Sim) = t'entraîner sans risque !",src:"FPV Simulator"},
+      {type:"fillblank",before:"La latence vidéo idéale pour le FPV racing est < ",blank:"20",after:"millisecondes.",opts:["20","100","50","5"],exp:"< 20ms de latence = réponse quasi-instantanée.",src:"Systèmes vidéo FPV"},
+    ]},
+    {id:"l14",title:"Matériel FPV",icon:"🥽",xp:25,exercises:[
+      {type:"mcq",q:"Que signifie VTX en FPV ?",opts:["Very Thin eXtra","Video TransmiXer","Video Transmitter","Vertical TX"],ok:2,exp:"VTX = Video Transmitter. Module qui envoie le flux vidéo vers ton casque FPV.",src:"Matériel FPV"},
+      {type:"tf",stmt:"Le système DJI O3 offre une meilleure qualité qu'un système analogique.",ok:true,exp:"DJI O3 = vidéo 1080p HD, ~20ms latence.",src:"Comparatif vidéo FPV"},
+      {type:"match",pairs:[["Caméra FPV","Capture l'image"],["VTX","Émet la vidéo"],["Casque FPV","Reçoit/affiche"],["Antenne","Améliore portée"]]},
+      {type:"mcq",q:"La taille standard des hélices pour FPV racing est ?",opts:["2 pouces","3 pouces","5 pouces","8 pouces"],ok:2,exp:"5 pouces = format standard du FPV racing !",src:"FPV Racing Standards"},
+      {type:"tf",stmt:"Un drone FPV 5 pouces peut dépasser 150 km/h.",ok:true,exp:"Les drones FPV 5 pouces racing peuvent atteindre 160-180 km/h !",src:"DRL Données techniques"},
+    ]},
+    {id:"l15",title:"Compétitions",icon:"🏆",xp:25,exercises:[
+      {type:"mcq",q:"Que signifie MultiGP ?",opts:["Multiple GPS","Organisation courses FPV","Multi-rotor GP","Logiciel vol"],ok:1,exp:"MultiGP = la plus grande organisation mondiale de courses FPV !",src:"MultiGP"},
+      {type:"tf",stmt:"La Drone Racing League (DRL) est une ligue professionnelle.",ok:true,exp:"DRL = la F1 des drones ! Des pilotes pros s'affrontent à 160+ km/h.",src:"DRL"},
+      {type:"match",pairs:[["Racing","Vitesse sur circuit"],["Freestyle","Figures créatives"],["Cinéma","Plans pro"],["Long Range","Dizaines de km"]]},
+      {type:"mcq",q:"Combien de temps dure un vol FPV racing typique ?",opts:["30 secondes","2-3 minutes","10 minutes","30 minutes"],ok:1,exp:"2-3 minutes par vol ! La batterie se décharge vite à pleine puissance.",src:"FPV Racing Pratique"},
+      {type:"tf",stmt:"Le freestyle FPV consiste à voler le plus vite possible.",ok:false,exp:"Freestyle = vol artistique et acrobatique filmé. La créativité prime.",src:"Freestyle FPV"},
+    ]}
+  ]},
+  { id:"u6",title:"Ingénierie",icon:"⚙️",color:"#FFD900",lessons:[
+    {id:"l16",title:"Parcours ingénieur",icon:"🎓",xp:30,exercises:[
+      {type:"mcq",q:"Quelle école forme des ingénieurs aéronautiques à Toulouse ?",opts:["Polytechnique","ISAE-SUPAERO","Arts et Métiers","INSA Lyon"],ok:1,exp:"ISAE-SUPAERO = LA grande école française d'aéronautique.",src:"ISAE-SUPAERO"},
+      {type:"tf",stmt:"Python est utilisé pour programmer des drones autonomes.",ok:true,exp:"Python est très utilisé : ArduPilot, ROS2, MAVSDK-Python.",src:"Programmation drone"},
+      {type:"match",pairs:[["ArduPilot","Firmware open-source"],["ROS2","Middleware robotique"],["PX4","Firmware pro"],["MAVSDK","SDK haut niveau"]]},
+      {type:"mcq",q:"Quel BAC est recommandé pour devenir ingénieur drone ?",opts:["BAC Pro","BAC Général","STI2D","STMG"],ok:1,exp:"BAC Général + Maths/Physique/NSI = meilleure porte d'entrée !",src:"Orientation ingénierie"},
+      {type:"fillblank",before:"Le stage de pilote ULM",blank:"A2",after:"permet de voler avec des drones jusqu'à 4 kg.",opts:["A2","A1","A3","B2"],exp:"La qualification A2 autorise les drones C2 jusqu'à 4 kg près des personnes.",src:"DGAC Qualification"},
+    ]},
+    {id:"l17",title:"Programmation",icon:"💻",xp:30,exercises:[
+      {type:"mcq",q:"Que signifie MAVLink ?",opts:["Micro Air Vehicle Link","Main AViation Link","Maximum AV Link","Mini AV Link"],ok:0,exp:"MAVLink = Micro Air Vehicle Link. Protocole de communication drones ↔ stations sol.",src:"MAVLink Protocol"},
+      {type:"tf",stmt:"ArduPilot est un firmware open-source.",ok:true,exp:"ArduPilot est sur GitHub, contribué par des milliers d'ingénieurs monde entier.",src:"ArduPilot GitHub"},
+      {type:"mcq",q:"Quel langage est utilisé dans Betaflight ?",opts:["Python","Java","C/C++","JavaScript"],ok:2,exp:"Betaflight est écrit en C. C est le roi des systèmes embarqués.",src:"Betaflight GitHub"},
+      {type:"fillblank",before:"ROS signifie Robot",blank:"Operating System",after:".",opts:["Operating System","Online Service","Open Source","Output Signal"],exp:"ROS = framework open-source pour robotique et drones autonomes.",src:"ROS Documentation"},
+      {type:"tf",stmt:"Un Raspberry Pi peut être un companion computer sur un drone.",ok:true,exp:"Le Raspberry Pi est utilisé pour la vision par ordinateur et l'IA embarquée !",src:"Companion Computer"},
+    ]},
+    {id:"l18",title:"Métiers & Projets",icon:"💼",xp:30,exercises:[
+      {type:"mcq",q:"Quel secteur recrute le plus d'ingénieurs drones en France ?",opts:["Tourisme","Défense + Aéronautique","Sport","Alimentation"],ok:1,exp:"Thales, Safran, Airbus, MBDA... La défense et l'aéronautique recrutent massivement !",src:"Emploi ingénieur drone"},
+      {type:"tf",stmt:"Thales et Safran recrutent des ingénieurs spécialisés en drones.",ok:true,exp:"Thales (défense), Safran (navigation)... deux géants qui recrutent !",src:"Thales Safran Recrutement"},
+      {type:"match",pairs:[["Zipline","Livraison médicale"],["DJI","Matériel grand public"],["Skydio","Drones autonomes IA"],["Volocopter","Taxi aérien"]]},
+      {type:"mcq",q:"Quel diplôme est requis pour ingénieur drone ?",opts:["Bac+2 BTS","Bac+3 Licence","Bac+5 Ingénieur","Bac seul"],ok:2,exp:"Bac+5 minimum ! École d'ingénieur ou Master en aéronautique/électronique.",src:"Fiche métier ingénieur drone"},
+      {type:"tf",stmt:"Les drones peuvent inspecter des infrastructures difficiles d'accès.",ok:true,exp:"Ponts, pylônes, toitures, éoliennes... Les drones remplacent les échafaudages !",src:"Drones inspection"},
+    ]}
+  ]}
+];
+
+const ACHIEVEMENTS = [
+  {id:"a1",icon:"🚁",title:"Premier Vol",desc:"Termine ta 1ère leçon",req:s=>s.lessonsCompleted>=1,color:"#58CC02"},
+  {id:"a2",icon:"🔥",title:"En Feu !",desc:"3 jours de streak",req:s=>s.streak>=3,color:"#FF9600"},
+  {id:"a3",icon:"💎",title:"Riche !",desc:"Obtiens 200 gemmes",req:s=>s.gems>=200,color:"#1CB0F6"},
+  {id:"a4",icon:"📚",title:"Étudiant",desc:"5 leçons terminées",req:s=>s.lessonsCompleted>=5,color:"#CE82FF"},
+  {id:"a5",icon:"⚡",title:"Rapide !",desc:"200 XP gagnés",req:s=>s.xp>=200,color:"#FFD900"},
+  {id:"a6",icon:"🎮",title:"Pilote FPV",desc:"Score 10 au simulateur",req:s=>s.fpvBest>=10,color:"#FF4B4B"},
+  {id:"a7",icon:"🏆",title:"Champion",desc:"Toutes les leçons terminées",req:s=>s.lessonsCompleted>=18,color:"#FFD900"},
+  {id:"a8",icon:"🧠",title:"Génie Drone",desc:"500 XP gagnés",req:s=>s.xp>=500,color:"#58CC02"},
+  {id:"a9",icon:"❤️",title:"Sans Faute",desc:"Leçon sans erreur",req:s=>s.perfectLessons>=1,color:"#FF4B4B"},
+  {id:"a10",icon:"🌟",title:"Niveau 10",desc:"Atteins le niveau 10",req:s=>s.level>=10,color:"#FFD900"},
+  {id:"a11",icon:"🦅",title:"Maître DGAC",desc:"Unité réglementation terminée",req:s=>s.unitsCompleted&&s.unitsCompleted.includes("u3"),color:"#FF9600"},
+  {id:"a12",icon:"⚙️",title:"Ingénieur",desc:"Unité ingénierie terminée",req:s=>s.unitsCompleted&&s.unitsCompleted.includes("u6"),color:"#CE82FF"},
+];
+
+const SHOP_ITEMS = [
+  {id:"s1",icon:"❤️",title:"1 Cœur",desc:"Récupère un cœur perdu",cost:50,type:"heart",amount:1},
+  {id:"s2",icon:"❤️",title:"5 Cœurs",desc:"Recharge complète !",cost:200,type:"heart",amount:5},
+  {id:"s3",icon:"🛡️",title:"Gel de Streak",desc:"Protège ton streak 1 jour",cost:150,type:"streakFreeze",amount:1},
+  {id:"s4",icon:"⚡",title:"Boost XP x2",desc:"Double XP prochaine leçon",cost:300,type:"xpBoost",amount:1},
+  {id:"s5",icon:"🎯",title:"Pack Starter",desc:"3 cœurs + Boost XP",cost:400,type:"combo",amount:1},
+  {id:"s6",icon:"🌈",title:"Streak 7j",desc:"7 jours de streak cadeau",cost:500,type:"streak",amount:7},
+];
+
+const LB_DATA = [
+  {rank:1,name:"DroneKing",flag:"🇫🇷",xp:1840,ava:"👑"},
+  {rank:2,name:"FPVmaster",flag:"🇧🇪",xp:1520,ava:"🚀"},
+  {rank:3,name:"SkyPilot",flag:"🇨🇭",xp:1310,ava:"🎯"},
+  {rank:4,name:"DroneNinja",flag:"🇫🇷",xp:1180,ava:"⚡"},
+  {rank:5,name:"AeroLucas",flag:"🇫🇷",xp:990,ava:"🛸"},
+  {rank:6,name:"RC_expert",flag:"🇩🇪",xp:880,ava:"🔧"},
+  {rank:7,name:"PixelFly",flag:"🇮🇹",xp:750,ava:"📸"},
+  {rank:8,name:"Turbine3",flag:"🇪🇸",xp:640,ava:"💨"},
+  {rank:9,name:"ZenDrone",flag:"🇫🇷",xp:520,ava:"🌸"},
+  {rank:10,name:"MiniFlyer",flag:"🇵🇹",xp:410,ava:"🐝"},
+];
+
+const DAILY_CHALLENGES = [
+  {id:"d1",icon:"🎯",title:"Quiz Express",desc:"Réponds à 5 questions en moins de 30s",xp:30,gems:15},
+  {id:"d2",icon:"🔥",title:"Sans Faute",desc:"Termine une leçon sans perdre de cœur",xp:50,gems:25},
+  {id:"d3",icon:"⚡",title:"Vitesse Éclair",desc:"Termine une leçon complète",xp:25,gems:10},
+];
+
+const DRONE_PARTS = [
+  {id:'frame',label:'Châssis (Frame)',desc:"La structure principale du drone. En carbone pour les FPV, plastique pour les drones grand public. Définit la taille (3\", 5\", 7\"...)."},
+  {id:'fc',label:'Flight Controller',desc:"Le \"cerveau\" du drone. Tourne Betaflight ou ArduPilot. Calcule les corrections jusqu'à 4000x/seconde via gyroscope + accéléromètre."},
+  {id:'esc',label:'ESC (4-en-1)',desc:"Electronic Speed Controller. Reçoit les signaux DSHOT du FC et contrôle la vitesse de chaque moteur en temps réel."},
+  {id:'motor',label:'Moteurs Brushless',desc:"Moteurs sans balais (2306, 2207...). Le kv définit les RPM/Volt. Un 5\" utilise ~2400kv sur 4S pour atteindre 160+ km/h."},
+  {id:'prop',label:'Hélices',desc:"Pales bi ou tri-pale en polycarbonate. Pour un 5\" FPV : hélices 5.1x4.1x3. Profil NACA pour l'efficacité aérodynamique."},
+  {id:'lipo',label:'Batterie LiPo',desc:"Lithium Polymer. 4S 1500mAh 100C pour le FPV racing. Voltage de stockage : 3,8V/cellule. Ne jamais descendre sous 3,5V !"},
+  {id:'vtx',label:'Caméra + VTX',desc:"La caméra FPV capture l'image. Le VTX (Video Transmitter) l'envoie au casque à 5,8GHz. DJI O4 offre une qualité HD."},
+  {id:'rx',label:'Récepteur (RX)',desc:"Reçoit les ordres de la radiocommande (ExpressLRS, CRSF). Connecté au FC via UART. Portée : 2 à 30+ km selon le protocole."},
+];
+
+// ══════════════════════════════════════════════
+// STATE / REDUCER
+// ══════════════════════════════════════════════
+
+const initState = {
+  xp:50,gems:80,hearts:5,streak:3,level:1,
+  lessonsCompleted:0,perfectLessons:0,fpvBest:0,
+  completed:[],stars:{},unitsCompleted:[],unitProgress:{},openedChests:[],
+};
+
+function reducer(state, action) {
+  switch(action.type) {
+    case 'addXP': { const xp=state.xp+action.xp; return{...state,xp,level:Math.floor(xp/300)+1}; }
+    case 'completeLesson': {
+      const {lessonId,xpEarned,stars,perfect,unitId}=action;
+      if(state.completed.includes(lessonId)) return state;
+      const xp=state.xp+xpEarned, gems=state.gems+(perfect?20:8);
+      const completed=[...state.completed,lessonId];
+      const unitProgress={...state.unitProgress,[unitId]:(state.unitProgress[unitId]||0)+1};
+      const unit=UNITS.find(u=>u.id===unitId);
+      const unitsCompleted=unit&&unitProgress[unitId]===unit.lessons.length
+        ?[...(state.unitsCompleted||[]),unitId]:state.unitsCompleted||[];
+      return{...state,xp,gems,completed,stars:{...state.stars,[lessonId]:stars},
+        lessonsCompleted:state.lessonsCompleted+1,perfectLessons:state.perfectLessons+(perfect?1:0),
+        unitProgress,unitsCompleted,level:Math.floor(xp/300)+1};
+    }
+    case 'updateFPV': return{...state,fpvBest:Math.max(state.fpvBest,action.score)};
+    case 'openChest': {
+      const{chestId,xp,gems}=action;
+      if(state.openedChests?.includes(chestId)) return state;
+      return{...state,xp:state.xp+xp,gems:state.gems+gems,openedChests:[...(state.openedChests||[]),chestId]};
+    }
+    case 'buy': {
+      const{item}=action;
+      if(state.gems<item.cost) return state;
+      const gems=state.gems-item.cost;
+      let hearts=state.hearts,streak=state.streak;
+      if(item.type==='heart') hearts=Math.min(5,hearts+item.amount);
+      if(item.type==='combo') hearts=Math.min(5,hearts+3);
+      if(item.type==='streak') streak=streak+item.amount;
+      return{...state,gems,hearts,streak};
+    }
+    default: return state;
+  }
+}
+
+// ══════════════════════════════════════════════
+// CSS
+// ══════════════════════════════════════════════
+
+const CSS=`
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#58CC02;--gd:#45A800;--gl:#D7FFB8;
+  --y:#FFD900;--yd:#E6C300;
+  --r:#FF4B4B;--rl:#FFDFE0;
+  --b:#1CB0F6;--bd:#0091D9;--bl:#DDF4FF;
+  --pu:#CE82FF;--or:#FF9600;
+  --gray:#E5E5E5;--gray2:#AFAFAF;--gray3:#777;
+  --txt:#3C3C3C;--bg:#FFFFFF;--bg2:#F7F7F7;
+  --f:'Nunito',sans-serif;
+}
+html,body{background:var(--bg2);font-family:var(--f);color:var(--txt)}
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--bg);border-top:2px solid var(--gray);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0)}
+.nbi{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0 8px;border:none;background:none;cursor:pointer;font-family:var(--f);font-size:10px;font-weight:700;color:var(--gray2);gap:3px;transition:color .15s;text-transform:uppercase;letter-spacing:.5px}
+.nbi.act{color:var(--b)}
+.nbi-ic{font-size:22px}
+.cont{flex:1;overflow-y:auto;padding:0 0 80px;-webkit-overflow-scrolling:touch}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;position:sticky;top:0;background:var(--bg);z-index:50;border-bottom:2px solid var(--gray)}
+.hdr-logo{font-size:18px;font-weight:900;color:var(--g)}
+.hdr-stats{display:flex;gap:14px;align-items:center}
+.hstat{display:flex;align-items:center;gap:4px;font-weight:800;font-size:15px}
+.hstat-ic{font-size:16px}
+.uhdr{padding:20px 16px 14px}
+.upill{display:inline-flex;align-items:center;gap:7px;background:var(--c,var(--g));color:#fff;padding:8px 16px;border-radius:14px;font-weight:800;font-size:14px;margin-bottom:12px;box-shadow:0 3px 0 rgba(0,0,0,.18)}
+.utitle{font-size:20px;font-weight:900;color:var(--txt);margin-bottom:4px}
+.usub{font-size:13px;color:var(--gray3);font-weight:600}
+.path-col{display:flex;flex-direction:column;align-items:center;padding:4px 0 12px}
+.pline{width:3px;height:28px;background:var(--gray)}
+.pline.done{background:var(--c,var(--g))}
+.pnode-wrap{display:flex;flex-direction:column;align-items:center}
+.pn{width:70px;height:70px;border-radius:50%;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:22px;transition:transform .15s;position:relative;font-family:var(--f)}
+.pn:active{transform:scale(.93)}
+.pn.available{background:var(--c,var(--g));box-shadow:0 5px 0 var(--cd,var(--gd));color:#fff}
+.pn.done{background:var(--c,var(--g));box-shadow:0 5px 0 var(--cd,var(--gd));color:#fff}
+.pn.locked{background:var(--gray);box-shadow:0 5px 0 #c0c0c0;cursor:not-allowed;color:var(--gray2)}
+.pn-crown{position:absolute;top:-10px;font-size:14px}
+.pn-stars{font-size:10px;margin-top:1px;letter-spacing:1px}
+.pn-lbl{font-size:11px;font-weight:800;color:var(--gray3);margin-top:7px;text-align:center;max-width:90px;line-height:1.3}
+.chest{width:56px;height:56px;border-radius:14px;background:var(--y);box-shadow:0 4px 0 var(--yd);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;margin:4px 0;transition:transform .15s}
+.chest:active{transform:scale(.93)}
+.chest.opened{background:var(--gray);box-shadow:0 4px 0 #ccc;filter:grayscale(1);cursor:default}
+.lesson-wrap{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+.lhdr{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:2px solid var(--gray)}
+.lclose{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray2);padding:2px}
+.lxpbar-wrap{flex:1;height:16px;background:var(--gray);border-radius:8px;overflow:hidden}
+.lxpbar{height:100%;border-radius:8px;transition:width .4s}
+.lhearts{display:flex;gap:3px;font-size:20px}
+.lbody{flex:1;overflow-y:auto;padding:24px 20px 16px;display:flex;flex-direction:column;gap:18px}
+.lquestion{font-size:20px;font-weight:800;color:var(--txt);line-height:1.5}
+.lhint{font-size:14px;font-weight:700;color:var(--gray3);margin-top:-6px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{padding:14px 18px;background:var(--bg);border:2.5px solid var(--gray);border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;transition:all .15s;text-align:left;color:var(--txt);font-family:var(--f);display:flex;align-items:center;gap:12px}
+.opt:hover:not(:disabled){border-color:var(--b);background:var(--bl)}
+.opt.selected{border-color:var(--b);background:var(--bl)}
+.opt.correct{border-color:var(--g);background:var(--gl);color:var(--gd)}
+.opt.wrong{border-color:var(--r);background:var(--rl);color:var(--r)}
+.opt-ic{width:34px;height:34px;border-radius:8px;border:2px solid var(--gray);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+.opt.correct .opt-ic{border-color:var(--g);background:var(--g);color:#fff}
+.opt.wrong .opt-ic{border-color:var(--r);background:var(--r);color:#fff}
+.opt.selected .opt-ic{border-color:var(--b);background:var(--b);color:#fff}
+.tf-opts{display:flex;gap:12px}
+.tf-btn{flex:1;padding:20px;border:2.5px solid var(--gray);border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--txt);font-family:var(--f);transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:6px}
+.tf-btn:hover:not(:disabled){border-color:var(--b);background:var(--bl)}
+.tf-btn.selected{border-color:var(--b);background:var(--bl)}
+.tf-btn.correct{border-color:var(--g);background:var(--gl);color:var(--gd)}
+.tf-btn.wrong{border-color:var(--r);background:var(--rl);color:var(--r)}
+.tf-ic{font-size:28px}
+.fb-sent{font-size:18px;font-weight:800;line-height:2;color:var(--txt);margin-bottom:16px;text-align:center}
+.fb-blank{display:inline-block;min-width:120px;border-bottom:3px solid var(--b);padding:0 8px;font-style:italic;color:var(--b)}
+.fb-opts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.fb-opt{padding:10px 18px;border:2.5px solid var(--gray);border-radius:30px;font-size:15px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--txt);font-family:var(--f);transition:all .15s}
+.fb-opt:hover:not(:disabled){border-color:var(--b);background:var(--bl);color:var(--b)}
+.fb-opt.selected{border-color:var(--b);background:var(--b);color:#fff}
+.fb-opt.correct{border-color:var(--g);background:var(--g);color:#fff}
+.fb-opt.wrong{border-color:var(--r);background:var(--r);color:#fff}
+.match-grid{display:flex;gap:10px}
+.match-col{flex:1;display:flex;flex-direction:column;gap:8px}
+.match-item{padding:12px 10px;border:2.5px solid var(--gray);border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--txt);font-family:var(--f);transition:all .15s;text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center}
+.match-item:hover:not(.matched):not(.wrong-match){border-color:var(--b);background:var(--bl)}
+.match-item.sel{border-color:var(--b);background:var(--b);color:#fff}
+.match-item.matched{border-color:var(--g);background:var(--gl);color:var(--gd);pointer-events:none}
+.match-item.wrong-match{border-color:var(--r);background:var(--rl);color:var(--r)}
+.lfeedback{padding:16px 20px;border-top:2px solid var(--gray)}
+.lfeedback.lf-correct{background:var(--gl);border-top-color:var(--g)}
+.lfeedback.lf-wrong{background:var(--rl);border-top-color:var(--r)}
+.lf-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.lf-ic{font-size:28px}
+.lf-title{font-size:18px;font-weight:900}
+.lf-correct .lf-title{color:var(--gd)}
+.lf-wrong .lf-title{color:var(--r)}
+.lf-exp{font-size:13px;color:var(--gray3);font-weight:600;line-height:1.6;margin-bottom:12px}
+.lf-src{font-size:11px;color:var(--gray2);font-weight:700;font-style:italic;margin-bottom:12px}
+.check-btn{width:100%;padding:16px;border-radius:16px;border:none;font-size:17px;font-weight:900;cursor:pointer;font-family:var(--f);transition:all .15s;box-shadow:0 4px 0 rgba(0,0,0,.15)}
+.check-btn.idle{background:var(--gray);color:var(--gray2);cursor:not-allowed;box-shadow:none}
+.check-btn.ready{background:var(--g);color:#fff}
+.check-btn.ready:hover{background:var(--gd)}
+.check-btn.correct{background:var(--g);color:#fff}
+.check-btn.wrong{background:var(--r);color:#fff}
+.celebration{position:fixed;inset:0;background:linear-gradient(135deg,#58CC02,#45A800);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;gap:16px;max-width:480px;margin:0 auto;padding:24px}
+.cel-ic{font-size:80px;animation:bounce 1s ease infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.cel-title{font-size:30px;font-weight:900;color:#fff;text-align:center}
+.cel-sub{font-size:15px;color:rgba(255,255,255,.85);font-weight:700;text-align:center}
+.cel-stats{display:flex;gap:16px;margin:12px 0}
+.cel-stat{background:rgba(255,255,255,.2);border-radius:14px;padding:14px 20px;text-align:center;color:#fff}
+.cel-sval{font-size:26px;font-weight:900}
+.cel-slbl{font-size:12px;font-weight:700;opacity:.85}
+.cel-btn{width:100%;max-width:320px;padding:18px;border-radius:16px;border:none;background:#fff;color:var(--g);font-size:18px;font-weight:900;cursor:pointer;font-family:var(--f);box-shadow:0 4px 0 rgba(0,0,0,.2)}
+.shop-item{display:flex;align-items:center;gap:14px;padding:16px;background:var(--bg);border:2px solid var(--gray);border-radius:18px;margin:0 16px 10px}
+.si-ic{font-size:30px;width:50px;height:50px;background:var(--bg2);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.si-info{flex:1}
+.si-title{font-size:15px;font-weight:800;color:var(--txt)}
+.si-desc{font-size:12px;color:var(--gray3);font-weight:600;margin-top:2px}
+.si-btn{background:var(--b);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--f);box-shadow:0 3px 0 var(--bd);white-space:nowrap}
+.si-btn.cant{background:var(--gray);color:var(--gray2);box-shadow:none;cursor:not-allowed}
+.lb-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1.5px solid var(--bg2)}
+.lb-rank{width:30px;font-size:16px;font-weight:900;text-align:center}
+.lb-rank.gold{color:var(--y)}.lb-rank.silver{color:#B0B8C1}.lb-rank.bronze{color:#CD7F32}
+.lb-ava{font-size:26px;width:40px;height:40px;background:var(--bg2);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.lb-name{flex:1;font-weight:800;font-size:15px}
+.lb-flag{font-size:14px}
+.lb-xp{font-weight:900;font-size:15px;color:var(--b)}
+.lb-me{background:var(--bl);border-left:4px solid var(--b)}
+.prof-head{padding:24px 20px;text-align:center;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:2px solid var(--gray)}
+.prof-ava{font-size:70px;margin-bottom:10px}
+.prof-name{font-size:22px;font-weight:900}
+.prof-lvl{font-size:13px;font-weight:700;color:var(--gray3);margin-bottom:16px}
+.xpbar-wrap{margin:0 20px;background:var(--gray);height:16px;border-radius:8px;overflow:hidden;margin-bottom:4px}
+.xpbar-fill{height:100%;background:var(--g);border-radius:8px;transition:width .5s}
+.xpbar-lbl{text-align:center;font-size:12px;font-weight:700;color:var(--gray3);margin:0 20px 4px}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:16px}
+.sstat{background:var(--bg2);border-radius:14px;padding:14px 8px;text-align:center}
+.sstat-v{font-size:22px;font-weight:900}
+.sstat-l{font-size:11px;font-weight:700;color:var(--gray3);margin-top:2px}
+.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:16px}
+.ach{background:var(--bg2);border-radius:14px;padding:14px 8px;text-align:center;border:2px solid transparent;transition:all .2s}
+.ach.earned{border-color:var(--y);background:#FFFDE7}
+.ach-ic{font-size:28px;margin-bottom:4px}
+.ach-t{font-size:10px;font-weight:800}
+.ach-d{font-size:9px;color:var(--gray3);font-weight:600;margin-top:1px;line-height:1.3}
+.daily-card{margin:0 16px 10px;background:var(--bg);border:2px solid var(--gray);border-radius:18px}
+.dc-top{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.dc-ic{font-size:28px;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--bg2)}
+.dc-btn{background:var(--g);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--f);margin-left:auto;white-space:nowrap}
+.qq-q{font-size:18px;font-weight:800;color:var(--txt);margin-bottom:16px;line-height:1.5;background:var(--bg2);padding:16px;border-radius:16px}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#3C3C3C;color:#fff;padding:12px 20px;border-radius:14px;font-size:14px;font-weight:700;z-index:600;animation:fadein .3s,fadeout .3s 1.7s forwards;pointer-events:none;white-space:nowrap;max-width:90vw;font-family:var(--f)}
+@keyframes fadein{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes fadeout{to{opacity:0}}
+.badgepop{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--y);color:var(--txt);padding:14px 20px;border-radius:20px;font-weight:800;font-size:15px;z-index:600;animation:badgein .4s,fadeout .3s 2.7s forwards;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.2);white-space:nowrap;max-width:90vw;font-family:var(--f)}
+@keyframes badgein{from{opacity:0;transform:translateX(-50%) scale(.7)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+.gift-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px}
+.gift-box{background:#fff;border-radius:24px;padding:28px 24px;text-align:center;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.gift-emoji{font-size:72px;animation:bounce 1s ease infinite;display:block;margin-bottom:12px}
+.gift-reward{display:flex;gap:12px;justify-content:center;margin:16px 0}
+.gift-pill{padding:10px 18px;border-radius:20px;font-weight:900;font-size:16px}
+.aiq-wrap{padding:16px}
+.aiq-sel{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.aiq-tag{padding:8px 14px;border:2px solid var(--gray);border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--txt);font-family:var(--f);transition:all .15s}
+.aiq-tag.act{background:var(--b);border-color:var(--b);color:#fff}
+.aiq-genbtn{width:100%;padding:16px;background:var(--b);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--f);box-shadow:0 3px 0 var(--bd);margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px}
+.aiq-genbtn:disabled{background:var(--gray);color:var(--gray2);box-shadow:none;cursor:not-allowed}
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sec-title{padding:16px 16px 8px;font-size:13px;font-weight:900;color:var(--gray3);text-transform:uppercase;letter-spacing:.8px}
+.v3d-wrap{padding:0 16px 16px}
+.v3d-tabs{display:flex;gap:8px;padding:12px 0 8px;overflow-x:auto}
+.vtab{padding:8px 14px;border-radius:20px;border:2px solid var(--gray);font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--txt);font-family:var(--f);white-space:nowrap;transition:all .15s}
+.vtab.act{background:var(--pu);border-color:var(--pu);color:#fff}
+.v3d-canvas{width:100%;border-radius:16px;border:2px solid var(--gray);display:block;background:#0a0a1a;touch-action:none}
+.v3d-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.v3d-btn{padding:8px 14px;border-radius:10px;border:2px solid var(--gray);font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--txt);font-family:var(--f);transition:all .15s}
+.v3d-btn:hover,.v3d-btn.act{background:var(--pu);border-color:var(--pu);color:#fff}
+.part-info{background:var(--bg2);border-radius:14px;padding:14px;margin-top:10px}
+.part-info-title{font-size:14px;font-weight:900;color:var(--pu);margin-bottom:4px}
+.part-info-desc{font-size:12px;color:var(--gray3);font-weight:600;line-height:1.6}
+.fpv-stick-wrap{display:flex;justify-content:space-between;padding:8px 16px 16px;gap:20px}
+.fpv-stick{width:110px;height:110px;background:var(--bg2);border:2px solid var(--gray);border-radius:50%;position:relative;touch-action:none;flex-shrink:0;user-select:none}
+.fpv-knob{width:46px;height:46px;background:var(--b);border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 2px 10px rgba(28,176,246,.5);pointer-events:none}
+.gltf-drop{border:2.5px dashed var(--gray);border-radius:16px;padding:20px;text-align:center;cursor:pointer;background:var(--bg2);transition:all .2s;margin-top:10px}
+.gltf-drop:hover,.gltf-drop.over{border-color:var(--pu);background:#f5edff}
+.gltf-drop-ic{font-size:36px;margin-bottom:8px}
+.gltf-drop-lbl{font-size:14px;font-weight:800;color:var(--pu)}
+.gltf-drop-sub{font-size:12px;color:var(--gray3);font-weight:600;margin-top:4px}
+`;
+
+// ══════════════════════════════════════════════
+// EXERCISE COMPONENTS
+// ══════════════════════════════════════════════
+
+function MCQ({ex,answered,selected,onSelect}){
+  const letters=['A','B','C','D'];
+  return(
+    <div className="opts">
+      {ex.opts.map((o,i)=>{
+        let cls='opt';
+        if(answered){if(i===ex.ok)cls+=' correct';else if(i===selected)cls+=' wrong';}
+        else if(i===selected)cls+=' selected';
+        return(
+          <button key={i} className={cls} onClick={()=>!answered&&onSelect(i)} disabled={answered}>
+            <span className="opt-ic">{answered&&i===ex.ok?'✓':answered&&i===selected&&i!==ex.ok?'✗':letters[i]}</span>{o}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TF({ex,answered,selected,onSelect}){
+  return(
+    <div className="tf-opts">
+      {[{v:true,ic:'✅',lbl:'VRAI'},{v:false,ic:'❌',lbl:'FAUX'}].map(item=>{
+        let cls='tf-btn';
+        if(answered){if(item.v===ex.ok)cls+=' correct';else if(item.v===selected)cls+=' wrong';}
+        else if(item.v===selected)cls+=' selected';
+        return(
+          <button key={String(item.v)} className={cls} onClick={()=>!answered&&onSelect(item.v)} disabled={answered}>
+            <span className="tf-ic">{item.ic}</span>{item.lbl}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FillBlank({ex,answered,selected,onSelect}){
+  return(
+    <div>
+      <div className="fb-sent">{ex.before} <span className="fb-blank">{selected!==null?selected:'______'}</span> {ex.after}</div>
+      <div className="fb-opts">
+        {ex.opts.map((o,i)=>{
+          let cls='fb-opt';
+          if(answered){if(o===ex.blank)cls+=' correct';else if(o===selected)cls+=' wrong';}
+          else if(o===selected)cls+=' selected';
+          return <button key={i} className={cls} onClick={()=>!answered&&onSelect(o)} disabled={answered}>{o}</button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Match({ex,onComplete}){
+  const[selL,setSelL]=useState(null);
+  const[selR,setSelR]=useState(null);
+  const[matched,setMatched]=useState([]);
+  const[wrongs,setWrongs]=useState([]);
+  const pairs=ex.pairs;
+  const lefts=pairs.map(p=>p[0]);
+  const rights=useRef([...pairs.map(p=>p[1])].sort(()=>Math.random()-.5)).current;
+
+  const tryMatch=useCallback((l,r)=>{
+    const cor=pairs.find(p=>p[0]===l)?.[1];
+    if(r===cor){
+      const nm=[...matched,l];setMatched(nm);setSelL(null);setSelR(null);
+      if(nm.length===pairs.length)setTimeout(()=>onComplete(true),400);
+    }else{
+      setWrongs([l,r]);setTimeout(()=>{setWrongs([]);setSelL(null);setSelR(null);onComplete(false);},800);
+    }
+  },[matched,pairs,onComplete]);
+
+  useEffect(()=>{if(selL!==null&&selR!==null)tryMatch(selL,selR);},[selL,selR,tryMatch]);
+
+  const isML=l=>matched.includes(l);
+  const isMR=r=>matched.some(l=>pairs.find(p=>p[0]===l)?.[1]===r);
+
+  return(
+    <div className="match-grid">
+      <div className="match-col">
+        {lefts.map((l,i)=>{
+          let cls='match-item';
+          if(isML(l))cls+=' matched';else if(wrongs.includes(l))cls+=' wrong-match';else if(selL===l)cls+=' sel';
+          return <button key={i} className={cls} onClick={()=>!isML(l)&&setSelL(l===selL?null:l)}>{l}</button>;
+        })}
+      </div>
+      <div className="match-col">
+        {rights.map((r,i)=>{
+          let cls='match-item';
+          if(isMR(r))cls+=' matched';else if(wrongs.includes(r))cls+=' wrong-match';else if(selR===r)cls+=' sel';
+          return <button key={i} className={cls} onClick={()=>!isMR(r)&&setSelR(r===selR?null:r)}>{r}</button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// LESSON FLOW
+// ══════════════════════════════════════════════
+
+function LessonFlow({lesson,unitColor,onClose,onComplete}){
+  const[idx,setIdx]=useState(0);
+  const[hearts,setHearts]=useState(5);
+  const[selected,setSelected]=useState(null);
+  const[answered,setAnswered]=useState(false);
+  const[correct,setCorrect]=useState(null);
+  const[errors,setErrors]=useState(0);
+  const[done,setDone]=useState(false);
+  const[matchOk,setMatchOk]=useState(null);
+
+  const ex=lesson.exercises[idx];
+  const progress=idx/lesson.exercises.length;
+  const isReady=ex.type==='match'?matchOk!==null:selected!==null;
+
+  const handleCheck=()=>{
+    if(answered){
+      if(idx+1>=lesson.exercises.length)setDone(true);
+      else{setIdx(i=>i+1);setSelected(null);setAnswered(false);setCorrect(null);setMatchOk(null);}
+      return;
+    }
+    if(!isReady)return;
+    let ok;
+    if(ex.type==='mcq')ok=selected===ex.ok;
+    else if(ex.type==='tf')ok=selected===ex.ok;
+    else if(ex.type==='fillblank')ok=selected===ex.blank;
+    else ok=matchOk;
+    setCorrect(ok);setAnswered(true);
+    if(!ok){setHearts(h=>Math.max(0,h-1));setErrors(e=>e+1);}
+  };
+
+  const handleMatchComplete=useCallback(ok=>{
+    setMatchOk(ok);setCorrect(ok);setAnswered(true);
+    if(!ok){setHearts(h=>Math.max(0,h-1));setErrors(e=>e+1);}
+  },[]);
+
+  if(done){
+    const perfect=errors===0;
+    const xpEarned=Math.round(lesson.xp*(1+(perfect?0.5:0)));
+    const stars=errors===0?3:errors<=2?2:1;
+    return(
+      <div className="celebration">
+        <div className="cel-ic">🎉</div>
+        <div className="cel-title">Leçon terminée !</div>
+        <div className="cel-sub">{perfect?'PARFAIT ! Aucune erreur 🌟':`${errors} erreur${errors>1?'s':''} — Continue tes efforts !`}</div>
+        <div className="cel-stats">
+          <div className="cel-stat"><div className="cel-sval">+{xpEarned}</div><div className="cel-slbl">⚡ XP</div></div>
+          <div className="cel-stat"><div className="cel-sval">{'⭐'.repeat(stars)}</div><div className="cel-slbl">Étoiles</div></div>
+          <div className="cel-stat"><div className="cel-sval">+{perfect?20:8}💎</div><div className="cel-slbl">Gemmes</div></div>
+        </div>
+        <button className="cel-btn" onClick={()=>onComplete(xpEarned,stars,perfect)}>CONTINUER →</button>
+      </div>
+    );
+  }
+
+  const fbCls='lfeedback'+(answered?(correct?' lf-correct':' lf-wrong'):'');
+  const btnCls='check-btn'+(answered?(correct?' correct':' wrong'):(isReady?' ready':' idle'));
+  const btnTxt=answered?(correct?'✓ CONTINUER':"✗ OK, j'ai compris"):'VÉRIFIER';
+
+  return(
+    <div className="lesson-wrap">
+      <div className="lhdr">
+        <button className="lclose" onClick={onClose}>✕</button>
+        <div className="lxpbar-wrap"><div className="lxpbar" style={{width:`${progress*100}%`,background:unitColor}}/></div>
+        <div className="lhearts">{Array.from({length:5}).map((_,i)=><span key={i}>{i<hearts?'❤️':'🖤'}</span>)}</div>
+      </div>
+      <div className="lbody">
+        {ex.type==='mcq'&&<><div className="lhint">Quelle est la bonne réponse ?</div><div className="lquestion">{ex.q}</div><MCQ ex={ex} answered={answered} selected={selected} onSelect={setSelected}/></>}
+        {ex.type==='tf'&&<><div className="lhint">Vrai ou faux ?</div><div className="lquestion">{ex.stmt}</div><TF ex={ex} answered={answered} selected={selected} onSelect={setSelected}/></>}
+        {ex.type==='fillblank'&&<><div className="lhint">Complète la phrase !</div><FillBlank ex={ex} answered={answered} selected={selected} onSelect={setSelected}/></>}
+        {ex.type==='match'&&<><div className="lhint">Associe les paires !</div><Match ex={ex} answered={answered} onComplete={handleMatchComplete}/></>}
+      </div>
+      <div className={fbCls}>
+        {answered&&(
+          <>
+            <div className="lf-row"><span className="lf-ic">{correct?'🎉':'💡'}</span><div className="lf-title">{correct?'Excellent !':'Pas tout à fait...'}</div></div>
+            <div className="lf-exp">{ex.exp}</div>
+            {ex.src&&<div className="lf-src">📚 {ex.src}</div>}
+          </>
+        )}
+        {ex.type!=='match'&&<button className={btnCls} onClick={handleCheck} disabled={!isReady&&!answered}>{btnTxt}</button>}
+        {ex.type==='match'&&answered&&<button className={btnCls} onClick={handleCheck}>{btnTxt}</button>}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// GIFT MODAL
+// ══════════════════════════════════════════════
+
+function GiftModal({onClose,xp,gems}){
+  return(
+    <div className="gift-modal" onClick={onClose}>
+      <div className="gift-box" onClick={e=>e.stopPropagation()}>
+        <span className="gift-emoji">🎁</span>
+        <div style={{fontSize:22,fontWeight:900,marginBottom:6}}>Coffre débloqué !</div>
+        <div style={{fontSize:13,color:'var(--gray3)',fontWeight:600,marginBottom:8}}>Tu as terminé l'unité — voici ta récompense !</div>
+        <div className="gift-reward">
+          <div className="gift-pill" style={{background:'#DDF4FF',color:'#0091D9'}}>+{xp} ⚡ XP</div>
+          <div className="gift-pill" style={{background:'#E8F5E9',color:'#45A800'}}>+{gems} 💎</div>
+        </div>
+        <button onClick={onClose} style={{width:'100%',padding:14,background:'var(--g)',color:'#fff',border:'none',borderRadius:14,fontSize:16,fontWeight:900,cursor:'pointer',fontFamily:'var(--f)',marginTop:8}}>
+          Super ! 🎉
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// FPV 3D GAME
+// ══════════════════════════════════════════════
+
+function FPV3DGame({onXP,onBest}){
+  const canvasRef=useRef(null);
+  const stateRef=useRef({droneX:0,droneY:0,velX:0,velY:0,score:0,alive:false,started:false,frame:0,speed:0.12});
+  const keysRef=useRef({up:false,down:false,left:false,right:false});
+  const threeRef=useRef(null);
+  const animRef=useRef(null);
+  const [uiScore,setUiScore]=useState(0);
+  const [uiState,setUiState]=useState('idle');
+  const [uiBest,setUiBest]=useState(0);
+
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const W=canvas.parentElement?.clientWidth||440;
+    const H=260;
+    canvas.width=W; canvas.height=H;
+
+    const scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x000d1a);
+    scene.fog=new THREE.FogExp2(0x000d1a,0.012);
+
+    const camera=new THREE.PerspectiveCamera(70,W/H,0.1,200);
+    camera.position.set(0,0,0);
+    camera.lookAt(0,0,-1);
+
+    const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'low-power'});
+    renderer.setSize(W,H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+    scene.add(new THREE.AmbientLight(0x223355,3));
+    const pL=new THREE.PointLight(0x4488ff,4,40);
+    scene.add(pL);
+
+    const grid=new THREE.GridHelper(300,60,0x003366,0x001833);
+    grid.position.y=-7;
+    scene.add(grid);
+
+    const starGeo=new THREE.BufferGeometry();
+    const starPos=new Float32Array(600*3);
+    for(let i=0;i<600*3;i++) starPos[i]=(Math.random()-0.5)*160;
+    starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
+    scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0x8899ff,size:0.12,transparent:true,opacity:0.7})));
+
+    const droneGroup=new THREE.Group();
+    const bodyMat=new THREE.MeshPhongMaterial({color:0x00ff88,emissive:0x003311,shininess:200});
+    droneGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.55,0.1,0.55),bodyMat));
+    const armMat=new THREE.MeshPhongMaterial({color:0x00cc66});
+    const propMat=new THREE.MeshPhongMaterial({color:0x88ffcc,transparent:true,opacity:0.75});
+    [[-0.38,-0.38],[0.38,-0.38],[-0.38,0.38],[0.38,0.38]].forEach(([ax,az])=>{
+      const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.55,6),armMat.clone());
+      arm.rotation.z=Math.PI/2;
+      arm.position.set(ax,0,az);
+      droneGroup.add(arm);
+      const prop=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.018,8),propMat.clone());
+      prop.position.set(ax,0.07,az);
+      prop.userData.isProp=true;
+      droneGroup.add(prop);
+    });
+    const led=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),new THREE.MeshPhongMaterial({color:0xff4444,emissive:0xff0000}));
+    led.position.set(0,0.05,-0.3);
+    droneGroup.add(led);
+    droneGroup.position.set(0,0,-3);
+    scene.add(droneGroup);
+
+    const gates=[];
+    function createGate(z){
+      const g=new THREE.Group();
+      const gx=(Math.random()-0.5)*10;
+      const gy=(Math.random()-0.5)*5;
+      g.position.set(gx,gy,z);
+      g.userData={passed:false,gx,gy,origX:gx,origY:gy,origZ:z};
+      const torusMat=new THREE.MeshPhongMaterial({color:0x1CB0F6,emissive:0x003366,transparent:true,opacity:0.9});
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(2.6,0.22,10,28),torusMat);
+      ring.userData.isRing=true;
+      g.add(ring);
+      const glow=new THREE.Mesh(new THREE.TorusGeometry(2.8,0.06,8,28),new THREE.MeshPhongMaterial({color:0x1CB0F6,emissive:0x1199ff,transparent:true,opacity:0.3}));
+      g.add(glow);
+      [0,1,2,3].forEach(qi=>{
+        const angle=(qi/4)*Math.PI*2;
+        const lm=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6),new THREE.MeshPhongMaterial({color:0x44ddff,emissive:0x22aaff}));
+        lm.position.set(Math.cos(angle)*2.6,Math.sin(angle)*2.6,0);
+        g.add(lm);
+      });
+      scene.add(g);
+      gates.push(g);
+      return g;
+    }
+    for(let i=0;i<7;i++) createGate(-22-i*20);
+
+    threeRef.current={scene,camera,renderer,droneGroup,gates,createGate,pL};
+
+    function loop(){
+      animRef.current=requestAnimationFrame(loop);
+      const st=stateRef.current;
+      const k=keysRef.current;
+      const {droneGroup,gates,createGate,camera,renderer,scene,pL}=threeRef.current;
+
+      if(st.started&&st.alive){
+        st.frame++;
+        st.speed=Math.min(0.32,0.12+st.score*0.009);
+
+        if(k.up)st.velY+=0.016;
+        if(k.down)st.velY-=0.016;
+        if(k.left)st.velX-=0.014;
+        if(k.right)st.velX+=0.014;
+        st.velX*=0.87; st.velY*=0.87;
+        st.droneX+=st.velX; st.droneY+=st.velY;
+        st.droneX=Math.max(-6.5,Math.min(6.5,st.droneX));
+        st.droneY=Math.max(-4.5,Math.min(4.5,st.droneY));
+
+        droneGroup.position.x+=(st.droneX-droneGroup.position.x)*0.18;
+        droneGroup.position.y+=(st.droneY-droneGroup.position.y)*0.18;
+        droneGroup.rotation.z=-st.velX*3.5;
+        droneGroup.rotation.x=st.velY*2;
+        camera.position.x+=(st.droneX*0.25-camera.position.x)*0.07;
+        camera.position.y+=(st.droneY*0.25-camera.position.y)*0.07;
+
+        droneGroup.children.forEach(c=>{if(c.userData.isProp)c.rotation.y+=0.45;});
+
+        gates.forEach(g=>{
+          g.position.z+=st.speed*55*(1/60);
+
+          if(!g.userData.passed&&g.position.z>-2.5&&g.position.z<1.5){
+            const dx=Math.abs(st.droneX-g.userData.gx);
+            const dy=Math.abs(st.droneY-g.userData.gy);
+            if(dx<2.2&&dy<2.2){
+              g.userData.passed=true;
+              const ring=g.children.find(c=>c.userData.isRing);
+              if(ring){ring.material.color.set(0x58CC02);ring.material.emissive.set(0x114400);}
+              st.score++;
+              setUiScore(st.score);
+              onXP(5);
+            } else {
+              st.alive=false;
+              const finalScore=st.score;
+              setUiState('over');
+              setUiBest(prev=>{
+                const nb=Math.max(prev,finalScore);
+                if(nb>prev)onBest(nb);
+                return nb;
+              });
+            }
+          }
+
+          if(g.position.z>6){
+            g.position.z-=gates.length*20+10;
+            const nx=(Math.random()-0.5)*10;
+            const ny=(Math.random()-0.5)*5;
+            g.position.x=nx; g.position.y=ny;
+            g.userData.gx=nx; g.userData.gy=ny;
+            g.userData.passed=false;
+            const ring=g.children.find(c=>c.userData.isRing);
+            if(ring){ring.material.color.set(0x1CB0F6);ring.material.emissive.set(0x003366);}
+          }
+        });
+
+        gates.forEach(g=>{g.rotation.z+=0.004;});
+      }
+
+      pL.intensity=2.5+Math.sin(Date.now()*0.003)*1.2;
+      pL.position.set(
+        stateRef.current.droneX*0.3,
+        stateRef.current.droneY*0.3+1,
+        droneGroup.position.z-2
+      );
+
+      renderer.render(scene,camera);
+    }
+    loop();
+
+    const kd=e=>{
+      const d=e.type==='keydown';
+      if(['ArrowUp','w',' '].includes(e.key)){keysRef.current.up=d;if(d)e.preventDefault();}
+      if(['ArrowDown','s'].includes(e.key)){keysRef.current.down=d;if(d)e.preventDefault();}
+      if(['ArrowLeft','a'].includes(e.key)){keysRef.current.left=d;if(d)e.preventDefault();}
+      if(['ArrowRight','d'].includes(e.key)){keysRef.current.right=d;if(d)e.preventDefault();}
+    };
+    window.addEventListener('keydown',kd);
+    window.addEventListener('keyup',kd);
+
+    return()=>{
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener('keydown',kd);
+      window.removeEventListener('keyup',kd);
+      renderer.dispose();
+    };
+  },[]);
+
+  const startGame=useCallback(()=>{
+    const st=stateRef.current;
+    Object.assign(st,{droneX:0,droneY:0,velX:0,velY:0,score:0,alive:true,started:true,frame:0,speed:0.12});
+    const{gates,scene,createGate}=threeRef.current;
+    gates.forEach(g=>scene.remove(g));
+    gates.length=0;
+    for(let i=0;i<7;i++)createGate(-22-i*20);
+    setUiScore(0);
+    setUiState('running');
+  },[]);
+
+  const leftRef=useRef(null); const leftKnobRef=useRef(null);
+  const rightRef=useRef(null); const rightKnobRef=useRef(null);
+
+  useEffect(()=>{
+    function makeStick(el,knobEl,axisKeys){
+      if(!el||!knobEl)return()=>{};
+      const R=32;
+      let active=false,ox=0,oy=0;
+      const start=e=>{
+        active=true;
+        const t=e.touches?e.touches[0]:e;
+        ox=t.clientX;oy=t.clientY;
+        e.preventDefault();
+      };
+      const move=e=>{
+        if(!active)return;
+        const t=e.touches?e.touches[0]:e;
+        let dx=t.clientX-ox, dy=t.clientY-oy;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>R){dx=dx/dist*R;dy=dy/dist*R;}
+        knobEl.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+        Object.keys(axisKeys).forEach(dir=>{
+          keysRef.current[dir]=axisKeys[dir](dx,dy);
+        });
+        e.preventDefault();
+      };
+      const end=()=>{
+        active=false;
+        knobEl.style.transform='translate(-50%,-50%)';
+        Object.keys(axisKeys).forEach(dir=>{keysRef.current[dir]=false;});
+      };
+      el.addEventListener('touchstart',start,{passive:false});
+      el.addEventListener('touchmove',move,{passive:false});
+      el.addEventListener('touchend',end);
+      el.addEventListener('mousedown',start);
+      window.addEventListener('mousemove',move);
+      window.addEventListener('mouseup',end);
+      return()=>{
+        el.removeEventListener('touchstart',start);
+        el.removeEventListener('touchmove',move);
+        el.removeEventListener('touchend',end);
+        el.removeEventListener('mousedown',start);
+        window.removeEventListener('mousemove',move);
+        window.removeEventListener('mouseup',end);
+      };
+    }
+    const c1=makeStick(leftRef.current,leftKnobRef.current,{
+      left:(dx)=>dx<-8,
+      right:(dx)=>dx>8,
+    });
+    const c2=makeStick(rightRef.current,rightKnobRef.current,{
+      up:(_,dy)=>dy<-8,
+      down:(_,dy)=>dy>8,
+    });
+    return()=>{c1();c2();};
+  },[]);
+
+  return(
+    <div style={{padding:'0 16px'}}>
+      <canvas ref={canvasRef} style={{width:'100%',borderRadius:16,border:'2px solid var(--gray)',display:'block',background:'#000d1a',touchAction:'none'}}/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 4px 4px'}}>
+        <div style={{fontSize:14,fontWeight:800,color:uiState==='over'?'var(--r)':'var(--g)'}}>
+          {uiState==='idle'&&'🚁 Prêt ?'}
+          {uiState==='running'&&`🏆 ${uiScore} portes`}
+          {uiState==='over'&&`💥 CRASH ! Score : ${uiScore}`}
+        </div>
+        <div style={{fontSize:13,fontWeight:700,color:'var(--gray3)'}}>Meilleur : {uiBest}</div>
+      </div>
+      <div style={{display:'flex',justifyContent:'center',margin:'6px 0 4px'}}>
+        <button onClick={startGame} style={{padding:'11px 28px',background:'var(--g)',color:'#fff',border:'none',borderRadius:12,fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'var(--f)',boxShadow:'0 3px 0 var(--gd)'}}>
+          {uiState==='over'?'🔄 Rejouer':uiState==='running'?'🔄 Restart':'▶ Commencer'}
+        </button>
+      </div>
+      {uiState==='idle'&&<div style={{textAlign:'center',fontSize:12,fontWeight:600,color:'var(--gray3)',paddingBottom:6}}>Passe à travers les anneaux bleus 🔵 — clavier ou joysticks tactiles</div>}
+      <div className="fpv-stick-wrap">
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--gray3)'}}>← Gauche/Droite →</div>
+          <div ref={leftRef} className="fpv-stick"><div ref={leftKnobRef} className="fpv-knob"/></div>
+        </div>
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <div style={{fontSize:11,color:'var(--gray3)',fontWeight:600,textAlign:'center',lineHeight:1.6}}>
+            Joysticks<br/>tactiles<br/><span style={{color:'var(--gray2)'}}>ou touches<br/>WASD/flèches</span>
+          </div>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--gray3)'}}>↑ Haut/Bas ↓</div>
+          <div ref={rightRef} className="fpv-stick"><div ref={rightKnobRef} className="fpv-knob"/></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// DRONE 3D VIEWER
+// ══════════════════════════════════════════════
+
+function Drone3DViewer(){
+  const canvasRef=useRef(null);
+  const explodedRef=useRef(false);
+  const selectedRef=useRef(null);
+  const threeRef=useRef(null);
+  const animRef=useRef(null);
+  const [explodedUI,setExplodedUI]=useState(false);
+  const [selectedUI,setSelectedUI]=useState(null);
+  const [activeTab,setActiveTab]=useState('fpv5');
+  const [gltfUrl,setGltfUrl]=useState(null);
+  const [gltfStatus,setGltfStatus]=useState('');
+  const fileInputRef=useRef(null);
+  const dropRef=useRef(null);
+
+  const MODELS={fpv5:'🏎️ FPV 5"',mini:'🎥 DJI Mini',hex:'🏭 Hexacoptère',gltf:'📦 Ton fichier'};
+
+  const basePosRef=useRef(new Map());
+
+  function buildScene(tab){
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const W=canvas.parentElement?.clientWidth||440;
+    const H=260;
+    canvas.width=W; canvas.height=H;
+
+    if(threeRef.current){
+      cancelAnimationFrame(animRef.current);
+      threeRef.current.renderer.dispose();
+    }
+
+    const scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x080818);
+
+    const camera=new THREE.PerspectiveCamera(48,W/H,0.1,200);
+    camera.position.set(0,5,13);
+    camera.lookAt(0,0,0);
+
+    const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+    renderer.setSize(W,H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    renderer.shadowMap.enabled=true;
+
+    scene.add(new THREE.AmbientLight(0x334466,3));
+    const dl=new THREE.DirectionalLight(0xffffff,5);
+    dl.position.set(4,10,7); dl.castShadow=true; scene.add(dl);
+    const dl2=new THREE.DirectionalLight(0x4466ff,2);
+    dl2.position.set(-4,2,-10); scene.add(dl2);
+    const grid=new THREE.GridHelper(24,24,0x223355,0x112244);
+    grid.position.y=-3.5; scene.add(grid);
+
+    const droneGroup=new THREE.Group();
+    basePosRef.current=new Map();
+
+    if(tab==='fpv5') buildFPV5(droneGroup);
+    else if(tab==='mini') buildMini(droneGroup);
+    else if(tab==='hex') buildHex(droneGroup);
+    else if(tab==='gltf'&&gltfUrl) loadGLTF(gltfUrl,droneGroup,scene,setGltfStatus);
+
+    if(tab!=='gltf') scene.add(droneGroup);
+
+    droneGroup.children.forEach(c=>{
+      basePosRef.current.set(c,{x:c.position.x,y:c.position.y,z:c.position.z});
+    });
+
+    let isDrag=false,lastX=0;
+    let autoRot=true,autoTimer=null;
+    canvas.addEventListener('mousedown',e=>{isDrag=true;lastX=e.clientX;});
+    canvas.addEventListener('touchstart',e=>{isDrag=true;lastX=e.touches[0].clientX;},{passive:true});
+    const stopDrag=()=>{isDrag=false;clearTimeout(autoTimer);autoTimer=setTimeout(()=>{autoRot=true;},3500);};
+    window.addEventListener('mouseup',stopDrag);
+    window.addEventListener('touchend',stopDrag);
+    canvas.addEventListener('mousemove',e=>{
+      if(!isDrag)return;
+      droneGroup.rotation.y+=(e.clientX-lastX)*0.012;
+      lastX=e.clientX; autoRot=false;
+    });
+    canvas.addEventListener('touchmove',e=>{
+      if(!isDrag)return;
+      droneGroup.rotation.y+=(e.touches[0].clientX-lastX)*0.012;
+      lastX=e.touches[0].clientX; autoRot=false;
+      e.preventDefault();
+    },{passive:false});
+
+    const ray=new THREE.Raycaster();
+    const mpos=new THREE.Vector2();
+    canvas.addEventListener('click',e=>{
+      const rect=canvas.getBoundingClientRect();
+      mpos.x=((e.clientX-rect.left)/W)*2-1;
+      mpos.y=-((e.clientY-rect.top)/H)*2+1;
+      ray.setFromCamera(mpos,camera);
+      const hits=ray.intersectObjects(droneGroup.children,true);
+      if(hits.length>0){
+        let obj=hits[0].object;
+        while(obj&&!obj.userData.partId&&obj.parent&&obj.parent!==droneGroup)obj=obj.parent;
+        if(obj?.userData?.partId){
+          const pid=obj.userData.partId;
+          selectedRef.current=pid===selectedRef.current?null:pid;
+          setSelectedUI(selectedRef.current);
+        }
+      }
+    });
+
+    function loop(){
+      animRef.current=requestAnimationFrame(loop);
+      if(autoRot) droneGroup.rotation.y+=0.005;
+
+      const expl=explodedRef.current;
+      const sel=selectedRef.current;
+
+      droneGroup.children.forEach(child=>{
+        const base=basePosRef.current.get(child)||{x:0,y:0,z:0};
+        const eOff=child.userData.explode||{x:0,y:0,z:0};
+        const tx=base.x+(expl?eOff.x:0);
+        const ty=base.y+(expl?eOff.y:0);
+        const tz=base.z+(expl?eOff.z:0);
+        child.position.x+=(tx-child.position.x)*0.1;
+        child.position.y+=(ty-child.position.y)*0.1;
+        child.position.z+=(tz-child.position.z)*0.1;
+
+        const isSelected=child.userData.partId===sel;
+        function setEmissive(mesh,on){
+          if(mesh.material){
+            if(!mesh.material.emissive)return;
+            if(!mesh.userData._baseEmissive)mesh.userData._baseEmissive=mesh.material.emissive.clone();
+            mesh.material.emissive.set(on?0x4422aa:mesh.userData._baseEmissive);
+            mesh.material.emissiveIntensity=on?2:1;
+          }
+          mesh.children?.forEach(c=>setEmissive(c,on));
+        }
+        setEmissive(child,isSelected);
+      });
+
+      renderer.render(scene,camera);
+    }
+    loop();
+
+    threeRef.current={scene,camera,renderer,droneGroup};
+  }
+
+  function addPart(group,mesh,partId,bx,by,bz,ex,ey,ez){
+    mesh.position.set(bx,by,bz);
+    mesh.userData.partId=partId;
+    mesh.userData.explode={x:ex,y:ey,z:ez};
+    group.add(mesh);
+  }
+
+  function buildFPV5(g){
+    const fm=()=>new THREE.MeshPhongMaterial({color:0x1a1a1a,shininess:120});
+    const plate=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.1,2.6),fm());
+    addPart(g,plate,'frame',0,0,0,0,0,0);
+    ['ne','nw','se','sw'].forEach((_,qi)=>{
+      const arm=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.07,3.2),fm());
+      arm.rotation.y=Math.PI/4*(qi%2===0?1:-1);
+      addPart(g,arm,'frame',(qi<2?0.9:-0.9),0,(qi%2===0?-0.9:0.9),0,0,0);
+    });
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(1.7,0.07,1.7),new THREE.MeshPhongMaterial({color:0x0044aa,emissive:0x001133})),'fc',0,0.1,0, 0,1.4,0);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(2.0,0.07,2.0),new THREE.MeshPhongMaterial({color:0xaa3300,emissive:0x220800})),'esc',0,-0.1,0, 0,-1.4,0);
+    [[2.0,-2.0],[2.0,2.0],[-2.0,-2.0],[-2.0,2.0]].forEach(([mx,mz],mi)=>{
+      const motor=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.35,0.32,12),new THREE.MeshPhongMaterial({color:0x8822cc,shininess:200}));
+      addPart(g,motor,'motor',mx,0,mz, mx*0.35,0.9,mz*0.35);
+      const pMat=new THREE.MeshPhongMaterial({color:mi%2===0?0x00ee44:0x22aaff,transparent:true,opacity:0.8});
+      const propG=new THREE.Group();
+      for(let b=0;b<3;b++){
+        const blade=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.025,0.78),pMat.clone());
+        blade.rotation.y=(b/3)*Math.PI*2+(Math.PI/6);
+        blade.position.set(Math.cos((b/3)*Math.PI*2)*0.38,0,Math.sin((b/3)*Math.PI*2)*0.38);
+        propG.add(blade);
+      }
+      propG.userData.partId='prop';
+      propG.userData.explode={x:mx*0.35,y:1.9,z:mz*0.35};
+      propG.position.set(mx,0.26,mz);
+      basePosRef.current.set(propG,{x:mx,y:0.26,z:mz});
+      g.add(propG);
+    });
+    const cam=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.55),new THREE.MeshPhongMaterial({color:0xbbaa00,shininess:160}));
+    addPart(g,cam,'vtx',0,0.55,-1.3, 0,2.2,-1.8);
+    const lens=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.08,12),new THREE.MeshPhongMaterial({color:0x111122,shininess:300}));
+    lens.rotation.x=Math.PI/2; lens.userData.partId='vtx'; lens.userData.explode={x:0,y:2.2,z:-1.8};
+    lens.position.set(0,0.55,-1.6); basePosRef.current.set(lens,{x:0,y:0.55,z:-1.6}); g.add(lens);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(2.2,0.5,1.0),new THREE.MeshPhongMaterial({color:0xcc1100,shininess:60})),'lipo',0,-0.38,0, 0,-2.6,0);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(0.75,0.045,0.55),new THREE.MeshPhongMaterial({color:0x00bb44,emissive:0x002211})),'rx',0.75,0.2,0.7, 1.6,0.8,1.6);
+  }
+
+  function buildMini(g){
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(1.7,0.35,1.7),new THREE.MeshPhongMaterial({color:0xeeeeee,shininess:80})),'frame',0,0,0,0,0,0);
+    [[0.9,0.9],[0.9,-0.9],[-0.9,0.9],[-0.9,-0.9]].forEach(([mx,mz])=>{
+      const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.24,0.15,10),new THREE.MeshPhongMaterial({color:0x444444}));
+      addPart(g,cap,'motor',mx,0.25,mz, mx*0.5,0.9,mz*0.5);
+      const prop=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.02,10),new THREE.MeshPhongMaterial({color:0x111111,transparent:true,opacity:0.7}));
+      addPart(g,prop,'prop',mx,0.38,mz, mx*0.5,1.7,mz*0.5);
+    });
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(0.32,0.3,0.26),new THREE.MeshPhongMaterial({color:0x333333})),'vtx',0,0.22,0.9, 0,1.8,1.4);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(1.0,0.2,0.65),new THREE.MeshPhongMaterial({color:0xcc1100})),'lipo',0,-0.28,0, 0,-1.6,0);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(0.88,0.045,0.88),new THREE.MeshPhongMaterial({color:0x0044aa,emissive:0x001133})),'fc',0,0.07,0, 0,0.9,0);
+  }
+
+  function buildHex(g){
+    for(let i=0;i<6;i++){
+      const angle=(i/6)*Math.PI*2;
+      const arm=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.05,2.7),new THREE.MeshPhongMaterial({color:0x222222}));
+      arm.rotation.y=angle;
+      addPart(g,arm,'frame',Math.cos(angle)*1.1,0,Math.sin(angle)*1.1, 0,0,0);
+      const motor=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.3,0.28,10),new THREE.MeshPhongMaterial({color:0x8822cc}));
+      addPart(g,motor,'motor',Math.cos(angle)*2.4,0.18,Math.sin(angle)*2.4, Math.cos(angle)*0.65,0.9,Math.sin(angle)*0.65);
+      const prop=new THREE.Mesh(new THREE.CylinderGeometry(0.68,0.68,0.025,12),new THREE.MeshPhongMaterial({color:i%2===0?0x00ee44:0x22aaff,transparent:true,opacity:0.78}));
+      addPart(g,prop,'prop',Math.cos(angle)*2.4,0.38,Math.sin(angle)*2.4, Math.cos(angle)*0.65,1.9,Math.sin(angle)*0.65);
+    }
+    addPart(g,new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,0.12,12),new THREE.MeshPhongMaterial({color:0x111111})),'frame',0,0,0,0,0,0);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(1.3,0.07,1.3),new THREE.MeshPhongMaterial({color:0x0044aa,emissive:0x001133})),'fc',0,0.14,0, 0,1.5,0);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(2.5,0.55,1.25),new THREE.MeshPhongMaterial({color:0xcc1100})),'lipo',0,-0.4,0, 0,-2.2,0);
+    addPart(g,new THREE.Mesh(new THREE.BoxGeometry(1.8,0.07,1.8),new THREE.MeshPhongMaterial({color:0xaa3300,emissive:0x220800})),'esc',0,-0.1,0, 0,-1.2,0);
+  }
+
+  function loadGLTF(url,group,scene,setStatus){
+    setStatus('Chargement...');
+    import('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js')
+      .then(({GLTFLoader})=>{
+        const loader=new GLTFLoader();
+        loader.load(url,gltf=>{
+          const model=gltf.scene;
+          const box=new THREE.Box3().setFromObject(model);
+          const size=box.getSize(new THREE.Vector3());
+          const maxDim=Math.max(size.x,size.y,size.z);
+          if(maxDim>0) model.scale.setScalar(6/maxDim);
+          const center=box.getCenter(new THREE.Vector3());
+          model.position.sub(center);
+          group.add(model);
+          scene.add(group);
+          group.children.forEach(c=>{
+            basePosRef.current.set(c,{x:c.position.x,y:c.position.y,z:c.position.z});
+          });
+          setStatus('✅ Modèle chargé !');
+        },
+        xhr=>{setStatus(`Chargement ${Math.round(xhr.loaded/xhr.total*100)}%`);},
+        err=>{setStatus('❌ Erreur de chargement. Format GLB/GLTF requis.');console.error(err);}
+        );
+      })
+      .catch(()=>{
+        setStatus('❌ GLTFLoader non disponible.\nDans ton projet : npm install three → import {GLTFLoader}');
+      });
+  }
+
+  useEffect(()=>{
+    buildScene(activeTab);
+  },[activeTab,gltfUrl]);
+
+  const handleExplode=()=>{
+    const v=!explodedRef.current;
+    explodedRef.current=v;
+    setExplodedUI(v);
+  };
+
+  const handleSelectPart=pid=>{
+    const v=pid===selectedRef.current?null:pid;
+    selectedRef.current=v;
+    setSelectedUI(v);
+  };
+
+  useEffect(()=>{
+    const el=dropRef.current;
+    if(!el)return;
+    const over=e=>{e.preventDefault();el.classList.add('over');};
+    const leave=()=>el.classList.remove('over');
+    const drop=e=>{
+      e.preventDefault();el.classList.remove('over');
+      const file=e.dataTransfer?.files?.[0];
+      if(file)handleFile(file);
+    };
+    el.addEventListener('dragover',over);
+    el.addEventListener('dragleave',leave);
+    el.addEventListener('drop',drop);
+    return()=>{el.removeEventListener('dragover',over);el.removeEventListener('dragleave',leave);el.removeEventListener('drop',drop);};
+  },[]);
+
+  const handleFile=file=>{
+    if(!file.name.match(/\.(glb|gltf)$/i)){
+      setGltfStatus('❌ Seuls les fichiers .glb et .gltf sont supportés');
+      return;
+    }
+    const url=URL.createObjectURL(file);
+    setGltfUrl(url);
+    setActiveTab('gltf');
+  };
+
+  const partInfo=selectedUI?DRONE_PARTS.find(p=>p.id===selectedUI):null;
+
+  return(
+    <div className="v3d-wrap">
+      <div className="v3d-tabs">
+        {Object.entries(MODELS).map(([key,label])=>(
+          <button key={key} className={`vtab${activeTab===key?' act':''}`} onClick={()=>setActiveTab(key)}>{label}</button>
+        ))}
+      </div>
+      <canvas ref={canvasRef} className="v3d-canvas" style={{height:260}}/>
+      <div className="v3d-controls">
+        <button className={`v3d-btn${explodedUI?' act':''}`} onClick={handleExplode}>
+          {explodedUI?'🔧 Assembler':'💥 Vue Éclatée'}
+        </button>
+        <button className="v3d-btn" onClick={()=>handleSelectPart(null)}>↩ Reset</button>
+        <span style={{fontSize:12,fontWeight:600,color:'var(--gray3)'}}>👆 Tourne · Clique sur une pièce</span>
+      </div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:10}}>
+        {DRONE_PARTS.map(p=>(
+          <button key={p.id} onClick={()=>handleSelectPart(p.id)}
+            style={{padding:'6px 11px',borderRadius:20,border:`2px solid ${selectedUI===p.id?'var(--pu)':'var(--gray)'}`,
+              background:selectedUI===p.id?'var(--pu)':'var(--bg)',color:selectedUI===p.id?'#fff':'var(--txt)',
+              fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'var(--f)'}}>
+            {p.label.split(' ')[0]}
+          </button>
+        ))}
+      </div>
+      <div className="part-info">
+        {partInfo
+          ?<><div className="part-info-title">{partInfo.label}</div><div className="part-info-desc">{partInfo.desc}</div></>
+          :<><div className="part-info-title" style={{color:'var(--gray3)'}}>Vue 3D Interactive</div><div className="part-info-desc">Active "Vue Éclatée" pour séparer les composants. Clique sur une pièce pour sa description.</div></>
+        }
+      </div>
+
+      <input ref={fileInputRef} type="file" accept=".glb,.gltf" style={{display:'none'}} onChange={e=>e.target.files[0]&&handleFile(e.target.files[0])}/>
+      <div ref={dropRef} className="gltf-drop" onClick={()=>fileInputRef.current?.click()}>
+        <div className="gltf-drop-ic">📦</div>
+        <div className="gltf-drop-lbl">Charger ton modèle 3D (.glb / .gltf)</div>
+        <div className="gltf-drop-sub">Glisse-dépose ou clique · Héberge sur GitHub et colle l'URL</div>
+        {gltfStatus&&<div style={{marginTop:8,fontSize:12,fontWeight:700,color:gltfStatus.startsWith('✅')?'var(--g)':'var(--r)',whiteSpace:'pre-wrap'}}>{gltfStatus}</div>}
+      </div>
+
+      <div style={{display:'flex',gap:8,marginTop:10,alignItems:'center'}}>
+        <input
+          id="gltf-url-input"
+          type="text"
+          placeholder="URL GitHub Raw (.glb) : https://raw.githubusercontent.com/..."
+          style={{flex:1,padding:'10px 12px',borderRadius:12,border:'2px solid var(--gray)',fontSize:12,fontFamily:'var(--f)',fontWeight:600,color:'var(--txt)',outline:'none'}}
+          onKeyDown={e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(v){setGltfUrl(v);setActiveTab('gltf');}}}}
+        />
+        <button
+          onClick={()=>{const el=document.getElementById('gltf-url-input');if(el?.value){setGltfUrl(el.value.trim());setActiveTab('gltf');}}}
+          style={{padding:'10px 14px',background:'var(--pu)',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:13,cursor:'pointer',fontFamily:'var(--f)',whiteSpace:'nowrap'}}>
+          Charger ↗
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// AI QUIZ
+// ══════════════════════════════════════════════
+
+function AIQuiz({onXP}){
+  const topics=[
+    {id:'réglementation DGAC et EASA pour les drones en France',l:'📋 Réglementation'},
+    {id:'physique du vol des drones multirotors',l:'⚡ Physique'},
+    {id:'électronique des drones : moteurs, ESC, batteries, FC',l:'🔋 Électronique'},
+    {id:'sécurité et procédures urgence drone',l:'🛡️ Sécurité'},
+    {id:'ingénierie et programmation de drones autonomes',l:'⚙️ Ingénierie'},
+  ];
+  const[topic,setTopic]=useState(topics[0].id);
+  const[loading,setLoading]=useState(false);
+  const[q,setQ]=useState(null);
+  const[ans,setAns]=useState(null);
+  const[score,setScore]=useState({ok:0,tot:0});
+
+  const gen=async()=>{
+    setLoading(true);setAns(null);setQ(null);
+    try{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',max_tokens:800,
+          system:`Tu es expert en drones et aéronautique. Génère UNE question QCM pour un passionné voulant devenir ingénieur drone. Réponds UNIQUEMENT en JSON valide sans markdown :
+{"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"correct":0,"explanation":"...","source":"...","funfact":"..."}`,
+          messages:[{role:'user',content:`Question sur: ${topic}`}]
+        })
+      });
+      const data=await r.json();
+      const txt=data.content?.[0]?.text||'';
+      setQ(JSON.parse(txt.replace(/```json\n?|\n?```/g,'').trim()));
+    }catch(e){setQ({error:true});}
+    setLoading(false);
+  };
+
+  const pick=i=>{
+    if(ans!==null)return;
+    setAns(i);
+    if(i===q.correct){onXP(20);setScore(s=>({ok:s.ok+1,tot:s.tot+1}));}
+    else setScore(s=>({...s,tot:s.tot+1}));
+  };
+
+  return(
+    <div className="aiq-wrap">
+      <div style={{fontWeight:800,fontSize:13,color:'var(--gray3)',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Thème</div>
+      <div className="aiq-sel">{topics.map(t=><button key={t.id} className={`aiq-tag${topic===t.id?' act':''}`} onClick={()=>setTopic(t.id)}>{t.l}</button>)}</div>
+      {score.tot>0&&(
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 0',borderTop:'2px solid var(--gray)',borderBottom:'2px solid var(--gray)',marginBottom:14}}>
+          <span style={{fontSize:13,fontWeight:700,color:'var(--gray3)'}}>{score.tot} questions</span>
+          <div style={{flex:1,height:10,background:'var(--gray)',borderRadius:5,overflow:'hidden'}}><div style={{height:'100%',background:'var(--g)',width:`${score.tot?score.ok/score.tot*100:0}%`,borderRadius:5,transition:'width .4s'}}/></div>
+          <span style={{fontWeight:800,color:'var(--g)',fontSize:14}}>{Math.round(score.ok/(score.tot||1)*100)}%</span>
+        </div>
+      )}
+      <button className="aiq-genbtn" onClick={gen} disabled={loading}>
+        {loading?<><div className="spin"/>Génération...</>:<>🤖 Générer une question · +20 XP si correct</>}
+      </button>
+      {q&&!q.error&&(
+        <div>
+          <div className="qq-q">{q.question}</div>
+          <div className="opts" style={{marginBottom:14}}>
+            {q.options.map((o,i)=>{
+              let cls='opt';
+              if(ans!==null){if(i===q.correct)cls+=' correct';else if(i===ans)cls+=' wrong';}
+              return <button key={i} className={cls} onClick={()=>pick(i)} disabled={ans!==null}>
+                <span className="opt-ic">{ans!==null&&i===q.correct?'✓':ans!==null&&i===ans?'✗':['A','B','C','D'][i]}</span>{o}
+              </button>;
+            })}
+          </div>
+          {ans!==null&&(
+            <div style={{background:ans===q.correct?'var(--gl)':'var(--rl)',border:`2px solid ${ans===q.correct?'var(--g)':'var(--r)'}`,borderRadius:16,padding:16}}>
+              <div style={{fontWeight:900,fontSize:16,color:ans===q.correct?'var(--gd)':'var(--r)',marginBottom:8}}>{ans===q.correct?'✅ Parfait ! +20 XP':'❌ Pas tout à fait...'}</div>
+              <div style={{fontSize:13,fontWeight:600,color:'var(--txt)',lineHeight:1.7,marginBottom:8}}>{q.explanation}</div>
+              {q.funfact&&<div style={{background:'rgba(28,176,246,.1)',border:'2px solid var(--bl)',borderRadius:12,padding:10,fontSize:12,fontWeight:700,color:'var(--bd)',marginBottom:8}}>💡 {q.funfact}</div>}
+              {q.source&&<div style={{fontSize:11,color:'var(--gray3)',fontWeight:700,fontStyle:'italic'}}>📚 {q.source}</div>}
+              <button style={{marginTop:12,width:'100%',padding:14,background:'var(--b)',color:'#fff',border:'none',borderRadius:12,fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'var(--f)'}} onClick={gen}>Question suivante →</button>
+            </div>
+          )}
+        </div>
+      )}
+      {q?.error&&<div style={{padding:16,textAlign:'center',color:'var(--r)',fontWeight:700}}>Erreur de connexion. <button style={{color:'var(--b)',fontWeight:800,background:'none',border:'none',cursor:'pointer',fontFamily:'var(--f)'}} onClick={gen}>Réessayer</button></div>}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// PAGES
+// ══════════════════════════════════════════════
+
+function PageLearn({gameState,dispatch,setLesson}){
+  const{completed,unitProgress}=gameState;
+  const[giftModal,setGiftModal]=useState(null);
+
+  const handleChest=unit=>{
+    const chestId=`chest_${unit.id}`;
+    if(gameState.openedChests?.includes(chestId))return;
+    if(unitProgress?.[unit.id]!==unit.lessons.length)return;
+    dispatch({type:'openChest',chestId,xp:30,gems:20});
+    setGiftModal({xp:30,gems:20});
+  };
+
+  return(
+    <div className="cont">
+      {giftModal&&<GiftModal xp={giftModal.xp} gems={giftModal.gems} onClose={()=>setGiftModal(null)}/>}
+      <div className="hdr">
+        <div className="hdr-logo">🚁 DroneAcademy</div>
+        <div className="hdr-stats">
+          <span className="hstat"><span className="hstat-ic">🔥</span>{gameState.streak}</span>
+          <span className="hstat"><span className="hstat-ic">💎</span>{gameState.gems}</span>
+          <span className="hstat" style={{color:'var(--b)'}}><span className="hstat-ic">⚡</span>{gameState.xp}</span>
+        </div>
+      </div>
+      <div className="sec-title">🎯 Défis du jour</div>
+      {DAILY_CHALLENGES.map(dc=>(
+        <div className="daily-card" key={dc.id}>
+          <div className="dc-top">
+            <div className="dc-ic">{dc.icon}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:14}}>{dc.title}</div>
+              <div style={{fontSize:12,color:'var(--gray3)',fontWeight:600,marginTop:2}}>{dc.desc}</div>
+              <div style={{fontSize:11,fontWeight:800,color:'var(--b)',marginTop:4}}>+{dc.xp} XP · +{dc.gems}💎</div>
+            </div>
+            <button className="dc-btn">Commencer</button>
+          </div>
+        </div>
+      ))}
+      {UNITS.map((unit,ui)=>{
+        const prevDone=ui===0||(unitProgress?.[UNITS[ui-1].id]===UNITS[ui-1].lessons.length);
+        const unitDone=unitProgress?.[unit.id]===unit.lessons.length;
+        const chestId=`chest_${unit.id}`;
+        const chestOpened=gameState.openedChests?.includes(chestId);
+        return(
+          <div key={unit.id}>
+            <div className="uhdr">
+              <div className="upill" style={{'--c':unit.color}}>{unit.icon} Unité {ui+1}</div>
+              <div className="utitle">{unit.title}</div>
+              <div className="usub">{unit.lessons.length} leçons · {unit.lessons.reduce((a,l)=>a+l.xp,0)} XP</div>
+            </div>
+            <div className="path-col">
+              {unit.lessons.map((lesson,li)=>{
+                const lessonDone=completed.includes(lesson.id);
+                const prevLessonDone=li===0?prevDone:completed.includes(unit.lessons[li-1].id);
+                const available=prevLessonDone&&!lessonDone;
+                const status=lessonDone?'done':available?'available':'locked';
+                const stars=gameState.stars?.[lesson.id]||0;
+                const isLast=li===unit.lessons.length-1;
+                return(
+                  <div key={lesson.id} className="pnode-wrap">
+                    {li>0&&<div className={`pline${completed.includes(unit.lessons[li-1].id)?' done':''}`} style={completed.includes(unit.lessons[li-1].id)?{'--c':unit.color}:{}}/>}
+                    <div className={`pn ${status}`} style={{'--c':unit.color,'--cd':unit.color+'cc'}} onClick={()=>status!=='locked'&&setLesson({lesson,unit})}>
+                      {status==='locked'?'🔒':lessonDone?'✓':lesson.icon}
+                      {status==='available'&&<div className="pn-crown">👑</div>}
+                      {lessonDone&&stars>0&&<div className="pn-stars">{'⭐'.repeat(stars)}</div>}
+                    </div>
+                    <div className="pn-lbl">{lesson.title}</div>
+                    {isLast&&(
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
+                        <div className="pline" style={lessonDone?{background:unit.color}:{}}/>
+                        <div className={`chest${chestOpened?' opened':''}`} onClick={()=>handleChest(unit)} title={chestOpened?'Coffre ouvert':unitDone?'Cliquer pour ouvrir !':'Termine toutes les leçons'}>
+                          {chestOpened?'📦':unitDone?'🎁':'🔒'}
+                        </div>
+                        {unitDone&&!chestOpened&&<div style={{fontSize:10,fontWeight:800,color:'var(--or)',marginTop:3}}>Tap !</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PagePractice({gameState,dispatch}){
+  const[mode,setMode]=useState('fpv');
+  const MODES=[{id:'fpv',l:'🚁 FPV 3D'},{id:'viewer',l:'🔬 Maquettes 3D'},{id:'ai',l:'🤖 Quiz IA'},{id:'rapid',l:'⚡ Quiz Express'}];
+  const[qi,setQi]=useState(0);
+  const[ans,setAns]=useState(null);
+  const[timer,setTimer]=useState(15);
+  const[score,setScore]=useState({ok:0,tot:0});
+  const timerRef=useRef(null);
+  const allQ=UNITS.flatMap(u=>u.lessons.flatMap(l=>l.exercises.filter(e=>e.type==='mcq')));
+  const q=allQ[qi%allQ.length];
+
+  useEffect(()=>{
+    if(mode!=='rapid')return;
+    setTimer(15);
+    timerRef.current=setInterval(()=>setTimer(t=>{if(t<=1){setAns(-1);clearInterval(timerRef.current);return 0;}return t-1;}),1000);
+    return()=>clearInterval(timerRef.current);
+  },[qi,mode]);
+
+  const pickR=i=>{
+    if(ans!==null)return;
+    clearInterval(timerRef.current);setAns(i);
+    if(i===q.ok){dispatch({type:'addXP',xp:10});setScore(s=>({ok:s.ok+1,tot:s.tot+1}));}
+    else setScore(s=>({...s,tot:s.tot+1}));
+  };
+
+  return(
+    <div className="cont">
+      <div className="hdr">
+        <div className="hdr-logo">💪 Entraînement</div>
+        <div className="hdr-stats">
+          <span className="hstat"><span className="hstat-ic">💎</span>{gameState.gems}</span>
+          <span className="hstat" style={{color:'var(--b)'}}><span className="hstat-ic">⚡</span>{gameState.xp}</span>
+        </div>
+      </div>
+      <div style={{display:'flex',gap:8,padding:'12px 16px',overflowX:'auto'}}>
+        {MODES.map(m=>(
+          <button key={m.id} onClick={()=>{setMode(m.id);setAns(null);}}
+            style={{padding:'10px 16px',borderRadius:20,border:'2px solid',borderColor:mode===m.id?'var(--b)':'var(--gray)',
+              background:mode===m.id?'var(--b)':'var(--bg)',color:mode===m.id?'#fff':'var(--txt)',
+              fontWeight:800,fontSize:13,cursor:'pointer',fontFamily:'var(--f)',whiteSpace:'nowrap'}}>
+            {m.l}
+          </button>
+        ))}
+      </div>
+      {mode==='fpv'&&<FPV3DGame onXP={xp=>dispatch({type:'addXP',xp})} onBest={s=>dispatch({type:'updateFPV',score:s})}/>}
+      {mode==='viewer'&&<Drone3DViewer/>}
+      {mode==='ai'&&<AIQuiz onXP={xp=>dispatch({type:'addXP',xp})}/>}
+      {mode==='rapid'&&(
+        <div className="aiq-wrap">
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+            <span style={{fontSize:13,fontWeight:700,color:'var(--gray3)'}}>{score.tot} questions · ✓ {score.ok}</span>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:100,height:8,background:'var(--gray)',borderRadius:4,overflow:'hidden'}}>
+                <div style={{height:'100%',background:timer>7?'var(--g)':timer>3?'var(--y)':'var(--r)',width:`${timer/15*100}%`,transition:'width 1s linear',borderRadius:4}}/>
+              </div>
+              <span style={{fontWeight:900,fontSize:15,color:timer>7?'var(--g)':timer>3?'var(--yd)':'var(--r)',width:24}}>{timer}s</span>
+            </div>
+          </div>
+          <div className="qq-q">{q.q}</div>
+          <div className="opts" style={{marginBottom:14}}>
+            {q.opts.map((o,i)=>{
+              let cls='opt';
+              if(ans!==null){if(i===q.ok)cls+=' correct';else if(i===ans)cls+=' wrong';}
+              return <button key={i} className={cls} onClick={()=>pickR(i)} disabled={ans!==null}>
+                <span className="opt-ic">{ans!==null&&i===q.ok?'✓':ans!==null&&i===ans?'✗':['A','B','C','D'][i]}</span>{o}
+              </button>;
+            })}
+          </div>
+          {ans!==null&&(
+            <div style={{background:ans===q.ok?'var(--gl)':'var(--rl)',borderRadius:16,padding:16,border:`2px solid ${ans===q.ok?'var(--g)':'var(--r)'}`}}>
+              <b style={{color:ans===q.ok?'var(--gd)':'var(--r)',fontSize:16}}>{ans===q.ok?'✅ +10 XP !':ans===-1?'⏱ Temps écoulé !':'❌ Pas tout à fait...'}</b>
+              <div style={{fontSize:13,marginTop:6,lineHeight:1.6}}>{q.exp}</div>
+              <button style={{marginTop:12,width:'100%',padding:14,background:'var(--b)',color:'#fff',border:'none',borderRadius:12,fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'var(--f)'}} onClick={()=>{setQi(i=>(i+1)%allQ.length);setAns(null);}}>Question suivante →</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PageShop({gameState,dispatch}){
+  const[toast,setToast]=useState(null);
+  const buy=item=>{
+    if(gameState.gems<item.cost){setToast('💎 Pas assez de gemmes !');setTimeout(()=>setToast(null),2000);return;}
+    dispatch({type:'buy',item});
+    setToast(`✅ ${item.title} acheté !`);setTimeout(()=>setToast(null),2000);
+  };
+  return(
+    <div className="cont">
+      <div className="hdr">
+        <div className="hdr-logo">🏪 Boutique</div>
+        <div className="hdr-stats">
+          <span className="hstat" style={{color:'var(--b)'}}><span className="hstat-ic">💎</span>{gameState.gems}</span>
+          <span className="hstat"><span className="hstat-ic">❤️</span>{gameState.hearts}/5</span>
+        </div>
+      </div>
+      {toast&&<div className="toast">{toast}</div>}
+      <div style={{padding:'16px',background:'linear-gradient(135deg,#58CC02,#45A800)',margin:'0 16px 16px',borderRadius:20,textAlign:'center',color:'#fff'}}>
+        <div style={{fontSize:40,marginBottom:6}}>💎</div>
+        <div style={{fontSize:18,fontWeight:900}}>Tu as {gameState.gems} gemmes</div>
+        <div style={{fontSize:13,fontWeight:700,opacity:.85,marginTop:4}}>Gagne des gemmes en terminant des leçons !</div>
+      </div>
+      <div className="sec-title">Articles disponibles</div>
+      {SHOP_ITEMS.map(item=>(
+        <div className="shop-item" key={item.id}>
+          <div className="si-ic">{item.icon}</div>
+          <div className="si-info"><div className="si-title">{item.title}</div><div className="si-desc">{item.desc}</div></div>
+          <button className={`si-btn${gameState.gems<item.cost?' cant':''}`} onClick={()=>buy(item)}>💎 {item.cost}</button>
+        </div>
+      ))}
+      <div className="sec-title">Comment gagner des gemmes 💡</div>
+      {[['✅ Terminer une leçon','5-20 💎'],['⭐ Leçon parfaite','20 💎'],["🎁 Coffre d'unité",'20 💎'],['🤖 Quiz IA correct','5 💎']].map(([a,b],i)=>(
+        <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'10px 16px',borderBottom:'1.5px solid var(--bg2)',fontWeight:700,fontSize:14}}>
+          <span>{a}</span><span style={{color:'var(--b)'}}>{b}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PageLeaderboard({gameState}){
+  const myXP=gameState.xp;
+  const myPos=LB_DATA.findIndex(p=>p.xp<myXP);
+  const myRank=myPos===-1?LB_DATA.length+1:myPos+1;
+  const rs=r=>r===1?'gold':r===2?'silver':r===3?'bronze':'';
+  return(
+    <div className="cont">
+      <div className="hdr">
+        <div className="hdr-logo">🏆 Classement</div>
+        <div className="hdr-stats"><span className="hstat" style={{color:'var(--b)'}}><span className="hstat-ic">⚡</span>{myXP} XP</span></div>
+      </div>
+      <div style={{padding:16,background:'linear-gradient(135deg,#FFD900,#E6C300)',margin:'0 16px 16px',borderRadius:20,textAlign:'center'}}>
+        <div style={{fontSize:13,fontWeight:900,color:'#5a4000',textTransform:'uppercase'}}>Ta position</div>
+        <div style={{fontSize:40,fontWeight:900,color:'#3a2800'}}>#{myRank}</div>
+        <div style={{fontSize:13,fontWeight:700,color:'#5a4000'}}>{myXP} XP cette semaine</div>
+      </div>
+      <div className="sec-title">Top Pilotes — Cette semaine</div>
+      <div className="lb-row lb-me">
+        <div className="lb-rank" style={{color:'var(--b)'}}>#{myRank}</div>
+        <div className="lb-ava">🧑‍✈️</div><div className="lb-name">Toi 🫵</div>
+        <span className="lb-flag">🇫🇷</span><div className="lb-xp">{myXP} XP</div>
+      </div>
+      {LB_DATA.map((p,i)=>(
+        <div className="lb-row" key={i}>
+          <div className={`lb-rank ${rs(i+1)}`}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+          <div className="lb-ava">{p.ava}</div><div className="lb-name">{p.name}</div>
+          <span className="lb-flag">{p.flag}</span><div className="lb-xp">{p.xp} XP</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PageProfile({gameState}){
+  const xpLvl=gameState.xp%300;
+  const earnedAch=ACHIEVEMENTS.filter(a=>{try{return a.req(gameState);}catch{return false;}});
+  const ROADMAP=[
+    {t:'Formation A1/A3 DGAC (en ligne, gratuit)',done:gameState.xp>50},
+    {t:'Maîtriser physique & électronique drone',done:gameState.xp>150},
+    {t:'Simulateur FPV (Liftoff, Velocidrone)',done:gameState.fpvBest>5},
+    {t:'Construire son 1er drone DIY',done:false},
+    {t:'Lycée BAC Général (Maths, Physique, NSI)',done:false},
+    {t:'BTS Électronique / DUT GEII / CPGE',done:false},
+    {t:"École d'ingénieur (ISAE, ENAC, Centrale...)",done:false},
+  ];
+  return(
+    <div className="cont">
+      <div className="prof-head">
+        <div className="prof-ava">🧑‍✈️</div>
+        <div className="prof-name">Pilote Niveau {gameState.level}</div>
+        <div className="prof-lvl">Futur Ingénieur Drone 🚀</div>
+        <div className="xpbar-wrap"><div className="xpbar-fill" style={{width:`${xpLvl/300*100}%`}}/></div>
+        <div className="xpbar-lbl">{xpLvl} / 300 XP → Niveau {gameState.level+1}</div>
+      </div>
+      <div className="stats-grid">
+        {[['⚡',gameState.xp,'XP Total'],['🔥',gameState.streak,'Streak'],['❤️',`${gameState.hearts}/5`,'Cœurs'],['💎',gameState.gems,'Gemmes'],['📚',gameState.lessonsCompleted,'Leçons'],['⭐',Object.values(gameState.stars||{}).reduce((a,b)=>a+b,0),'Étoiles']].map(([ic,v,l])=>(
+          <div className="sstat" key={l}><div className="sstat-v">{ic} {v}</div><div className="sstat-l">{l}</div></div>
+        ))}
+      </div>
+      <div className="sec-title">🏅 Badges ({earnedAch.length}/{ACHIEVEMENTS.length})</div>
+      <div className="ach-grid">
+        {ACHIEVEMENTS.map(a=>{
+          let earned=false;try{earned=a.req(gameState);}catch{}
+          return(
+            <div key={a.id} className={`ach${earned?' earned':''}`}>
+              <div className="ach-ic" style={{filter:earned?'none':'grayscale(1) opacity(.35)'}}>{a.icon}</div>
+              <div className="ach-t">{a.title}</div>
+              <div className="ach-d">{a.desc}</div>
+              {earned&&<div style={{fontSize:9,color:'var(--yd)',fontWeight:900,marginTop:2}}>OBTENU ✓</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div className="sec-title">🗺️ Parcours Ingénieur Drone</div>
+      <div style={{padding:'0 16px 16px'}}>
+        {ROADMAP.map((s,i)=>(
+          <div key={i} style={{display:'flex',gap:12,marginBottom:14,alignItems:'flex-start'}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background:s.done?'var(--g)':'var(--bg)',border:`2.5px solid ${s.done?'var(--g)':'var(--gray)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:s.done?'#fff':'var(--gray2)',flexShrink:0}}>
+              {s.done?'✓':i+1}
+            </div>
+            <div style={{flex:1,paddingTop:3,fontSize:14,fontWeight:700,color:s.done?'var(--gd)':'var(--txt)'}}>{s.t}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{margin:'0 16px 24px',background:'linear-gradient(135deg,#DDF4FF,#BDE8FF)',border:'2px solid var(--bl)',borderRadius:20,padding:18,textAlign:'center'}}>
+        <div style={{fontSize:30,marginBottom:8}}>💡</div>
+        <div style={{fontSize:14,fontWeight:800,color:'var(--bd)',marginBottom:6}}>Conseil du jour</div>
+        <div style={{fontSize:13,fontWeight:600,color:'var(--txt)',lineHeight:1.6}}>Concentre-toi sur les maths et la physique à l'école. C'est la base de tout ce que tu aimeras faire dans l'aéronautique !</div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// APP
+// ══════════════════════════════════════════════
+
+const PAGES=[
+  {id:'learn',ic:'📚',l:'Apprendre'},
+  {id:'practice',ic:'🏋️',l:'Pratiquer'},
+  {id:'shop',ic:'🏪',l:'Boutique'},
+  {id:'leaderboard',ic:'🏆',l:'Classement'},
+  {id:'profile',ic:'👤',l:'Profil'},
+];
+
+function DroneAcademy(){
+  const[gs,setGs]=useState(initState);
+  const[page,setPage]=useState('learn');
+  const[activeLesson,setActiveLesson]=useState(null);
+  const[toast,setToast]=useState(null);
+  const[badgePop,setBadgePop]=useState(null);
+
+  const doDispatch=useCallback(action=>setGs(s=>reducer(s,action)),[]);
+  const showToast=useCallback(msg=>{setToast(msg);setTimeout(()=>setToast(null),2200);},[]);
+
+  useEffect(()=>{
+    const earned=ACHIEVEMENTS.filter(a=>{try{return a.req(gs);}catch{return false;}});
+    const prev=ACHIEVEMENTS.filter(a=>{try{return a.req({...gs,xp:gs.xp-1,lessonsCompleted:gs.lessonsCompleted-1});}catch{return false;}});
+    const nb=earned.find(a=>!prev.find(p=>p.id===a.id));
+    if(nb){setBadgePop(nb);setTimeout(()=>setBadgePop(null),3000);}
+  },[gs.xp,gs.lessonsCompleted]);
+
+  const handleLessonComplete=useCallback((xpEarned,stars,perfect,lesson,unit)=>{
+    doDispatch({type:'completeLesson',lessonId:lesson.id,unitId:unit.id,xpEarned,stars,perfect});
+    setActiveLesson(null);
+    showToast(`+${xpEarned} XP${perfect?' · Parfait ! ⭐⭐⭐':''}`);
+  },[doDispatch,showToast]);
+
+  return(
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+        {toast&&<div className="toast">{toast}</div>}
+        {badgePop&&<div className="badgepop">{badgePop.icon} Badge débloqué : {badgePop.title} !</div>}
+        {activeLesson&&(
+          <LessonFlow
+            lesson={activeLesson.lesson}
+            unitColor={activeLesson.unit.color}
+            onClose={()=>setActiveLesson(null)}
+            onComplete={(xp,stars,perfect)=>handleLessonComplete(xp,stars,perfect,activeLesson.lesson,activeLesson.unit)}
+          />
+        )}
+        {page==='learn'&&<PageLearn gameState={gs} dispatch={doDispatch} setLesson={setActiveLesson}/>}
+        {page==='practice'&&<PagePractice gameState={gs} dispatch={doDispatch}/>}
+        {page==='shop'&&<PageShop gameState={gs} dispatch={doDispatch}/>}
+        {page==='leaderboard'&&<PageLeaderboard gameState={gs}/>}
+        {page==='profile'&&<PageProfile gameState={gs}/>}
+        <nav className="bnav">
+          {PAGES.map(p=>(
+            <button key={p.id} className={`nbi${page===p.id?' act':''}`} onClick={()=>setPage(p.id)}>
+              <span className="nbi-ic">{p.ic}</span>{p.l}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<DroneAcademy />);
+</script>
+</body>
+</html>
